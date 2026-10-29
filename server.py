@@ -69,7 +69,7 @@ class Handler(SimpleHTTPRequestHandler):
                     output=feedback.previous_output
                     for name in feedback.violations:
                         marker=needs[int(name.split(":")[1])]
-                        output += "\\n" + marker + " completed locally."
+                        output += "\n" + marker + " completed locally."
                     return output
                 rules=[Rule(f"required:{i}",lambda text,marker=marker: marker in text)
                        for i,marker in enumerate(needs)]
