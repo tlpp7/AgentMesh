@@ -60,3 +60,11 @@ def test_agents_results_for_traces(api):
     assert data["accepted"]
     assert data["metrics"]["agent_calls"]==3
     assert any(e.get("supervisor")=="accepted" for e in data["trace"])
+
+def test_adaptive_controls_are_wired():
+    html=(ROOT/"web/index.html").read_text()
+    script=(ROOT/"web/app.js").read_text()
+    assert 'id="runAdaptive"' in html
+    assert 'id="adaptiveRequirements"' in html
+    assert 'mode:"adaptive"' in script
+    assert '"runAdaptive").addEventListener' in script
