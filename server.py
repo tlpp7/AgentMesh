@@ -3,12 +3,28 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 import json
+import os
+import hmac
 
 ROOT = Path(__file__).resolve().parent
+TOKEN = os.getenv("AGENTMESH_API_TOKEN", "")
+DB_PATH = os.getenv("AGENTMESH_DB_PATH", "")
+def store():
+    if not DB_PATH: return None
+    from agentmesh.storage import RunStore
+    return RunStore(DB_PATH)
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,directory=str(ROOT / "web"),**kwargs)
+    def authorized(self):
+        return not TOKEN or hmac.compare_digest(self.headers.get("Authorization",""),"Bearer "+TOKEN)
+    def run_response(self,mode,payload):
+        database=store()
+        if database:
+            accepted=payload.get("accepted",payload.get("feedback",{}).get("converged",False))
+            payload["run_id"]=database.append(mode,accepted,payload)
+        return self.respond(200,payload)
     def respond(self, code, data):
         raw=json.dumps(data,ensure_ascii=False).encode()
         self.send_response(code)
@@ -20,7 +36,17 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         route=urlparse(self.path).path
         if route=="/api/health":
-            return self.respond(200,{"status":"ok","version":"0.4.0"})
+            return self.respond(200,{"status":"ok","version":"0.6.0","persistence":bool(DB_PATH),"auth_required":bool(TOKEN)})
+        if route.startswith("/api/") and not self.authorized():
+            return self.respond(401,{"error":"unauthorized"})
+        if route=="/api/runs":
+            db=store()
+            return self.respond(200,{"runs":db.list() if db else [],"enabled":bool(db)})
+        if route.startswith("/api/runs/"):
+            db=store()
+            if not db: return self.respond(404,{"error":"persistence_disabled"})
+            value=db.get(route[len("/api/runs/"):])
+            return self.respond(200,value) if value is not None else self.respond(404,{"error":"not_found"})
         if route=="/api/architecture":
             return self.respond(200,{"nodes":["Input","Analyzer","Proposer","Critic","Constraints","Supervisor","Result"],"edges":[["Input","Analyzer"],["Analyzer","Proposer"],["Proposer","Critic"],["Critic","Constraints"],["Constraints","Supervisor"],["Supervisor","Result"]]})
         if route=="/": self.path="/index.html"
@@ -28,6 +54,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if urlparse(self.path).path!="/api/run":
             return self.respond(404,{"error":"not_found"})
+        if not self.authorized(): return self.respond(401,{"error":"unauthorized"})
         try:
             size=int(self.headers.get("Content-Length","0"))
             if not 1<=size<=65536:
@@ -36,6 +63,13 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(data,dict):
                 raise ValueError("object expected")
             mode=data.get("mode","agents")
+            if mode=="diagnostics":
+                from agentmesh.diagnostics import conditioning,residual_report
+                a=data.get("matrix",[[1,.3],[.2,1]])
+                value={"conditioning":conditioning(a)}
+                if "state" in data and "target" in data:
+                    value["residual"]=residual_report(a,data["state"],data["target"])
+                return self.respond(200,value)
             if mode=="agents":
                 from agentmesh.core import Mesh,Task
                 from agentmesh.constraints import nonempty,contains
@@ -50,7 +84,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if term:
                     if not isinstance(term,str): raise ValueError("contains must be a string")
                     constraints.append(contains(term))
-                return self.respond(200,Mesh(max_attempts=attempts).run(Task(objective,constraints)).to_dict())
+                return self.run_response(mode,Mesh(max_attempts=attempts).run(Task(objective,constraints)).to_dict())
             if mode=="hybrid":
                 from agentmesh.hybrid import run_hybrid
                 branch=data.get("branch","text")
@@ -60,12 +94,12 @@ class Handler(SimpleHTTPRequestHandler):
                     attempts=int(data.get("attempts",4))
                     if not isinstance(objective,str) or len(objective)>5000 or not 1<=attempts<=10:
                         raise ValueError("invalid objective or attempts")
-                    return self.respond(200,run_hybrid(objective=objective,requirements=requirements,
+                    return self.run_response(mode,run_hybrid(objective=objective,requirements=requirements,
                                     max_attempts=attempts).to_dict())
                 if branch=="numeric":
                     matrix=data.get("matrix",[[1,.3],[.2,1]])
                     target=data.get("target",[2,1])
-                    return self.respond(200,run_hybrid(matrix=matrix,target=target,
+                    return self.run_response(mode,run_hybrid(matrix=matrix,target=target,
                         gain=float(data.get("gain",.5)),
                         max_steps=min(1000,int(data.get("max_steps",100))),
                         lower=data.get("lower"),upper=data.get("upper")).to_dict())
@@ -93,7 +127,7 @@ class Handler(SimpleHTTPRequestHandler):
                 rules=[Rule(f"required:{i}",lambda text,marker=marker: marker in text)
                        for i,marker in enumerate(needs)]
                 result=AdaptiveMesh(produce,revise,rules,max_attempts=attempts).run(objective)
-                return self.respond(200,result.to_dict())
+                return self.run_response(mode,result.to_dict())
             if mode=="inverse":
                 from agentmesh.inverse import inverse_linear,reflexive_feedback
                 from agentmesh.micro import cross_sensitivity,interval_feasibility,feedback_stability
@@ -104,7 +138,7 @@ class Handler(SimpleHTTPRequestHandler):
                 gain=float(data.get("gain",.5))
                 x=inverse_linear(a,y,ridge=.001)
                 feedback=reflexive_feedback(a,[0]*len(x),y,gain=gain,max_steps=50)
-                return self.respond(200,{"inverse":x,"feedback":{"converged":feedback.converged,"iterations":feedback.iterations,"residual":feedback.residual,"history":feedback.history,"state":feedback.state},"sensitivity":cross_sensitivity(a,[.1]*len(x)),"feasibility":interval_feasibility(a,[-5]*len(x),[5]*len(x),y),"stability":feedback_stability(a,gain).__dict__})
+                return self.run_response(mode,{"inverse":x,"feedback":{"converged":feedback.converged,"iterations":feedback.iterations,"residual":feedback.residual,"history":feedback.history,"state":feedback.state},"sensitivity":cross_sensitivity(a,[.1]*len(x)),"feasibility":interval_feasibility(a,[-5]*len(x),[5]*len(x),y),"stability":feedback_stability(a,gain).__dict__})
             raise ValueError("unknown mode")
         except (TypeError,ValueError,KeyError,OverflowError,ZeroDivisionError) as exc:
             return self.respond(400,{"error":type(exc).__name__,"message":str(exc)})
