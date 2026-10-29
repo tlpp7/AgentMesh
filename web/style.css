@@ -21,3 +21,5 @@ footer{color:#6f8aa9;text-align:right;font-size:11px;padding:24px 4px}
 @media(max-width:1100px){aside{width:210px}main{padding:24px}.two{grid-template-columns:1fr}.panel{min-height:0}}
 @media(max-width:750px){.shell{display:block}aside{position:static;width:100%;height:auto;padding:15px}aside .brand{margin:5px 8px 16px;font-size:19px}aside nav{display:flex;flex-direction:row;overflow:auto;gap:6px;padding-bottom:5px}.nav{white-space:nowrap;width:auto;flex-shrink:0;padding:10px 12px;font-size:12px}.foot{margin-top:8px;padding:8px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}main{padding:20px 14px}header{display:block}.pill{margin-top:18px}.panel{padding:18px}.analysis-grid{grid-template-columns:1fr}.metric{padding:18px 15px}.metric strong{font-size:24px}h1{font-size:30px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+.chart-toggle{display:flex;align-items:center;gap:8px;color:#9db9d8;font-size:12px}.chart-toggle input[type=checkbox]{width:16px;height:16px;accent-color:#55dccb;margin:0;padding:0}
