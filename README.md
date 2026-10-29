@@ -1,13 +1,13 @@
 # AgentMesh
 
-**Constraint-aware multi-agent orchestration, inverse control and reflexive supervision.**
+**Constraint-aware multi-agent orchestration, inverse control, reflexive supervision and a local web laboratory.**
 
 [![CI](https://github.com/tlpp7/AgentMesh/actions/workflows/ci.yml/badge.svg)](https://github.com/tlpp7/AgentMesh/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 
-AgentMesh is an open-source Python laboratory for **multi-agent execution, constraint checking, feedback-driven revision and small-scale numeric inverse control**. It includes a local web dashboard, a JSON API, an asynchronous dependency-graph executor and numerical experimentation tools.
+AgentMesh is an open-source Python laboratory for **multi-agent execution, constraint checking, feedback-driven revision and small-scale numeric inverse control**. It includes a redesigned local web dashboard, a JSON API, an asynchronous dependency-graph executor, numerical diagnostics, opt-in SQLite run storage and integration contracts.
 
 > **Scope:** This is a working research prototype, not a production autonomous AI platform. The shipped demonstration agents are deterministic Python functions: they do not query a large language model or prove semantic correctness.
 
@@ -111,13 +111,31 @@ x[k+1] = project_bounds(x[k] + η (y - W x[k]))
 
 The numerical branch reports a residual, iteration count, sensitivity, interval feasibility status and the sufficient contraction check `||I - ηW||∞ < 1`. **An interval result marked `undetermined` is not a proof of feasibility.** Contraction failure is not proof of divergence. These methods operate on small real-valued vectors; no text-to-vector mapping is provided.
 
+## Optional local persistence and diagnostics
+
+SQLite run persistence is **disabled by default**. To enable it locally:
+
+```bash
+export AGENTMESH_DB_PATH="$PWD/.local/agentmesh.sqlite3"
+python server.py --host 127.0.0.1 --port 8000
+```
+
+The backend exposes `GET /api/runs`, `GET /api/runs/<id>` and experimental `GET /api/events` (bounded server-sent notifications). Requests with `mode: diagnostics` provide estimated numerical conditioning and residual information. The browser history and backend SQLite history are separate.
+
+**Optional bearer-token check** is enabled with `AGENTMESH_API_TOKEN`, but the current browser does not provide a token-entry UI. Use a local HTTP client with the Authorization header for protected API calls. This is **not** a full authentication or authorization system: static pages, HTTPS termination, roles, CSRF defense, rate limiting and production hardening are not provided. Keep the port private.
+
+**Integration contracts:** `integrations.py` exposes a typed state vector (`latency_ms`, `error_rate`, `cost_units`, `quality_score`) and allowlisted in-process callback execution requiring approval by default. This is not yet a live LLM or MCP transport.
+
 ## HTTP API
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
 | `/api/health` | GET | Server status |
 | `/api/architecture` | GET | Graph definition |
-| `/api/run` | POST | Run `agents`, `adaptive`, `inverse` or `hybrid` mode |
+| `/api/run` | POST | Run `agents`, `adaptive`, `inverse`, `hybrid` or `diagnostics` mode |
+| `/api/runs` | GET | List recent persistent runs when enabled |
+| `/api/runs/<id>` | GET | Fetch a persistent run |
+| `/api/events` | GET | Experimental event stream (requires persistence) |
 
 Example request:
 
@@ -131,9 +149,9 @@ For text supervision use `{"mode":"hybrid","branch":"text","objective":"Build a 
 
 ## Frontend
 
-The local dashboard provides **Vue générale**, **Graphe d'agents**, **Inversion croisée** and **Traces et métriques**. It can inspect nodes, execute agent demos, edit a 2×2 inverse-control scenario and export JSON from the current session. The historical session list is **not persisted across page reloads**.
+The local dashboard provides **Vue générale**, **Graphe d'agents**, **Inversion croisée** and **Traces et métriques**. It can inspect nodes, execute agent demos, edit a 2×2 inverse-control scenario and export JSON from the current session. The browser session history is **not persisted across page reloads**. A separate opt-in SQLite backend history is available through API endpoints.
 
-The hybrid API is available in the backend; the dedicated hybrid UI controls are still on the roadmap.
+The **Laboratoire hybride** tab provides controls for comparative text/numeric execution and an exploratory matrix-conditioning estimate. It does not combine incompatible metrics into a single scientific quality score.
 
 ## Testing and development
 
@@ -176,23 +194,30 @@ AgentMesh/
 
 - Run the web server locally or in a **private** Codespaces port. There is no authentication or production hardening yet.
 - No model API credentials are needed; shipped agents are simulated rule-based components.
+- Bearer-token checks are optional and do not constitute production-grade authentication. Keep the interface local/private.
+- The SQLite store can contain full prompts and outputs. Do not store sensitive data without an appropriate threat model.
 - Numeric acceptance describes only specified residual/constraint checks, not the quality of an external decision.
 - Arbitrary third-party Python agent callbacks are **not sandboxed**.
 - Avoid persisting secrets in JSON traces; review them before sharing.
 - No automatic coupling currently exists between LLM outputs and numeric state vectors.
 
-## Roadmap
+## Roadmap and completion status
 
-- [x] Sequential orchestration and constraint checking
-- [x] Async dependency DAG
-- [x] Numeric inverse, cross sensitivity and reflexive feedback
-- [x] Adaptive textual revision with explicit feedback
-- [x] Hybrid text/numeric backend and unified result structure
-- [x] Local web dashboard and API
-- [ ] Dedicated hybrid dashboard controls and comparative benchmarks
-- [ ] Pluggable safe LLM/MCP adapters and typed agent-state extraction
-- [ ] Persistent runs, authentication, event streaming and production security
-- [ ] Better numerical conditioning diagnostics and scale tests
+Completed items are checked only when the related capability exists in this repository. Partial work is broken down rather than marked as finished.
+
+- [x] Sequential orchestration, async DAG and constraint checks
+- [x] Adaptive textual feedback and hybrid text/numeric supervisor
+- [x] **Hybrid dashboard controls and basic comparative diagnostics**
+- [x] **Typed agent-state extraction from explicitly supplied metrics**
+- [x] **In-process tool allowlist and explicit approval callback**
+- [ ] **Real pluggable LLM and MCP transports**, integration testing and secret management
+- [x] **Opt-in SQLite persistence and run retrieval**
+- [x] **Optional basic bearer-token API check** (local use only)
+- [x] **Experimental bounded server-sent event endpoint**
+- [ ] **Production security:** robust authentication, roles, HTTPS, rate limiting, secret lifecycle, auditing and security review
+- [x] **Exploratory numerical conditioning and residual diagnostics**
+- [ ] **Numerical scale testing and robust production-grade SVD**
+- [ ] Semantic quality evaluation, persisted browser history, real-time execution graph and deployment hardening
 
 See [hybrid supervisor](docs/hybrid-supervisor.md), [adaptive supervisor](docs/adaptive-supervisor.md), [inverse control](docs/inverse-control.md), [systemic microprograms](docs/micro-systemic.md) and [architecture](docs/architecture.md).
 
