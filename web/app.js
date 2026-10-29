@@ -41,3 +41,18 @@ $("hybridJson").textContent=JSON.stringify({text,numeric,diagnostic},null,2);
 $("hybridNotice").textContent="Comparaison terminée (métriques distinctes, non agrégées).";
 record("hybrid",{accepted:text.accepted&&numeric.accepted,text,numeric,diagnostic});
 }catch(e){$("hybridNotice").textContent="Erreur : "+e.message}finally{b.disabled=false}});
+
+$("runGainSearch").addEventListener("click",async()=>{
+ const b=$("runGainSearch");b.disabled=true;$("gainResults").textContent="Optimisation en cours…";
+ try{
+  const matrix=[[$("w00").valueAsNumber,$("w01").valueAsNumber],[$("w10").valueAsNumber,$("w11").valueAsNumber]];
+  const target=[$("targetA").valueAsNumber,$("targetB").valueAsNumber];
+  const tolerance=Number($("gainTolerance").value),max_steps=Number($("gainBudget").value);
+  if(!matrix.flat().concat(target,tolerance,max_steps).every(Number.isFinite))throw Error("Entrées invalides");
+  const data=await request("/api/run",{mode:"gain_search",matrix,target,tolerance,max_steps,gains:[.1,.25,.5,.75,1,1.25]});
+  const chosen=data.best;$("gain").value=chosen.gain;$("gainLabel").value=chosen.gain;
+  $("gainResults").innerHTML="<p>Gain sélectionné : <strong>"+chosen.gain+"</strong> · "+chosen.iterations+" itérations · résidu "+chosen.residual.toExponential(3)+"</p>"+
+   data.candidates.map(c=>'<div class="step">η='+c.gain+' · '+c.iterations+' it. · '+c.residual.toExponential(2)+' · '+(c.converged?"Convergé":"Budget épuisé")+'</div>').join("");
+  plot(chosen.history);
+ }catch(e){$("gainResults").textContent="Erreur : "+e.message}finally{b.disabled=false}
+});
