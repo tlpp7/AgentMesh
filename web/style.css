@@ -22,3 +22,5 @@
 #nodeDetails p{font-family:monospace;font-size:11px}
 .view{min-height:400px}
 @media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.analysis-grid{grid-template-columns:1fr}main{padding:12px}header{align-items:start;gap:8px}h1{font-size:23px}}
+
+.adaptive-box{margin-top:18px;padding:14px;border:1px solid #365675;border-radius:10px;background:#10243a}.adaptive-box h3{margin:0 0 6px;font-size:15px}.adaptive-box .secondary{width:100%}
