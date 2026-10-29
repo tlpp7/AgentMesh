@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import json
 import os
 import hmac
+import time
 
 ROOT = Path(__file__).resolve().parent
 TOKEN = os.getenv("AGENTMESH_API_TOKEN", "")
@@ -39,6 +40,31 @@ class Handler(SimpleHTTPRequestHandler):
             return self.respond(200,{"status":"ok","version":"0.6.0","persistence":bool(DB_PATH),"auth_required":bool(TOKEN)})
         if route.startswith("/api/") and not self.authorized():
             return self.respond(401,{"error":"unauthorized"})
+        if route=="/api/events":
+            db=store()
+            if not db: return self.respond(404,{"error":"persistence_disabled"})
+            self.send_response(200)
+            self.send_header("Content-Type","text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control","no-cache")
+            self.send_header("X-Accel-Buffering","no")
+            self.end_headers()
+            last=""
+            try:
+                for _ in range(12):
+                    entries=db.list(limit=1)
+                    newest=entries[0]["id"] if entries else ""
+                    if newest!=last:
+                        payload=json.dumps({"latest":entries[0] if entries else None},ensure_ascii=False)
+                        self.wfile.write(("event: runs\\ndata: "+payload+"\\n\\n").encode())
+                        self.wfile.flush()
+                        last=newest
+                    else:
+                        self.wfile.write(b": heartbeat\\n\\n")
+                        self.wfile.flush()
+                    time.sleep(1)
+            except (ConnectionError,OSError):
+                return
+            return
         if route=="/api/runs":
             db=store()
             return self.respond(200,{"runs":db.list() if db else [],"enabled":bool(db)})
