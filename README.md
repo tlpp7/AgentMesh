@@ -126,13 +126,25 @@ The backend exposes `GET /api/runs`, `GET /api/runs/<id>` and experimental `GET 
 
 **Integration contracts:** `integrations.py` exposes a typed state vector (`latency_ms`, `error_rate`, `cost_units`, `quality_score`) and allowlisted in-process callback execution requiring approval by default. This is not yet a live LLM or MCP transport.
 
+## Adaptive gain selection and convergence diagnostics
+
+The local API includes `mode: gain_search`: compare a bounded list of candidate feedback gains using the same matrix, target, tolerance and iteration budget. The selector prioritizes **successful convergence**, then fewer iterations, then residual. This is a finite search, not an optimal-control proof. The inverse-control dashboard exposes a gain selector, configurable tolerance and iteration budget, plus a logarithmic/linear plot toggle.
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/api/run \\
+  -H "Content-Type: application/json" \\
+  -d '{"mode":"gain_search","matrix":[[1,0.3],[0.2,1]],"target":[2,1],"gains":[0.1,0.5,1.0],"tolerance":1e-7,"max_steps":100}'
+```
+
+Convergence means the specified numerical residual threshold was reached within the budget, not that a real-world system is reliable. A sufficient contraction certificate does not bound the number of iterations required to meet a chosen tolerance. The demo text agents are deterministic, so repeated classic runs can repeat the same failure; use adaptive mode for explicit marker-based revision.
+
 ## HTTP API
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
 | `/api/health` | GET | Server status |
 | `/api/architecture` | GET | Graph definition |
-| `/api/run` | POST | Run `agents`, `adaptive`, `inverse`, `hybrid` or `diagnostics` mode |
+| `/api/run` | POST | Run `agents`, `adaptive`, `inverse`, `hybrid`, `diagnostics` or `gain_search` mode |
 | `/api/runs` | GET | List recent persistent runs when enabled |
 | `/api/runs/<id>` | GET | Fetch a persistent run |
 | `/api/events` | GET | Experimental event stream (requires persistence) |
@@ -216,6 +228,7 @@ Completed items are checked only when the related capability exists in this repo
 - [x] **Experimental bounded server-sent event endpoint**
 - [ ] **Production security:** robust authentication, roles, HTTPS, rate limiting, secret lifecycle, auditing and security review
 - [x] **Exploratory numerical conditioning and residual diagnostics**
+- [x] **Finite adaptive gain comparison, configurable tolerance and log-scale residual chart**
 - [ ] **Numerical scale testing and robust production-grade SVD**
 - [ ] Semantic quality evaluation, persisted browser history, real-time execution graph and deployment hardening
 
