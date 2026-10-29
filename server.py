@@ -51,6 +51,25 @@ class Handler(SimpleHTTPRequestHandler):
                     if not isinstance(term,str): raise ValueError("contains must be a string")
                     constraints.append(contains(term))
                 return self.respond(200,Mesh(max_attempts=attempts).run(Task(objective,constraints)).to_dict())
+            if mode=="hybrid":
+                from agentmesh.hybrid import run_hybrid
+                branch=data.get("branch","text")
+                if branch=="text":
+                    objective=data.get("objective","")
+                    requirements=data.get("requirements",["Review:","Plan:"])
+                    attempts=int(data.get("attempts",4))
+                    if not isinstance(objective,str) or len(objective)>5000 or not 1<=attempts<=10:
+                        raise ValueError("invalid objective or attempts")
+                    return self.respond(200,run_hybrid(objective=objective,requirements=requirements,
+                                    max_attempts=attempts).to_dict())
+                if branch=="numeric":
+                    matrix=data.get("matrix",[[1,.3],[.2,1]])
+                    target=data.get("target",[2,1])
+                    return self.respond(200,run_hybrid(matrix=matrix,target=target,
+                        gain=float(data.get("gain",.5)),
+                        max_steps=min(1000,int(data.get("max_steps",100))),
+                        lower=data.get("lower"),upper=data.get("upper")).to_dict())
+                raise ValueError("unknown hybrid branch")
             if mode=="adaptive":
                 from agentmesh.adaptive import AdaptiveMesh, Rule
                 objective=data.get("objective","")
