@@ -29,7 +29,9 @@ def test_health(endpoint):
 
 def test_index(endpoint):
     with urlopen(endpoint+"/") as response:
-        assert b"AgentMesh Console" in response.read()
+        html = response.read().decode("utf-8")
+        assert "<title>AgentMesh — Control plane</title>" in html
+        assert 'data-panel="overview"' in html
 
 def test_agent_pipeline(endpoint):
     result=post(endpoint,{"mode":"agents","objective":"test"})
@@ -45,3 +47,12 @@ def test_invalid_request(endpoint):
     with pytest.raises(HTTPError) as err:
         post(endpoint,{"mode":"agents","objective":""})
     assert err.value.code==400
+
+
+def test_rejected_constraint_is_explicit(endpoint):
+    result=post(endpoint,{"mode":"agents","objective":"Analyse","contains":"expression introuvable","attempts":3})
+    assert result["accepted"] is False
+    assert result["attempts"]==3
+    assert result["metrics"]["agent_calls"]==9
+    assert result["metrics"]["constraint_checks"]==6
+    assert result["violations"]==["contains:expression introuvable"]
