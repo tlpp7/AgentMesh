@@ -2,9 +2,9 @@ const $=id=>document.getElementById(id);
 const panels=[...document.querySelectorAll("[data-panel]")];
 let latest=null;let history=[];let graphModel=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-function show(name){panels.forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.view===name));$("pageTitle").textContent=({"overview":"Vue générale","graph":"Graphe d'agents","inverse":"Inversion croisée","traces":"Traces et métriques"})[name];}
+function show(name){panels.forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.view===name));$("pageTitle").textContent=({"overview":"Vue générale","graph":"Graphe d'agents","inverse":"Inversion croisée","traces":"Traces et métriques","hybrid":"Laboratoire hybride"})[name];}
 document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>show(b.dataset.view)));
-async function request(path,payload){const init=payload===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)};const res=await fetch(path,init);let data;try{data=await res.json()}catch{throw Error("Réponse API invalide")}if(!res.ok)throw Error(data.message||data.error||"Erreur HTTP "+res.status);return data;}
+async function request(path,payload){const init=payload===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)};init.headers={...(init.headers||{}),...((window.agentmeshToken||"")?{"Authorization":"Bearer "+window.agentmeshToken}:{})};const res=await fetch(path,init);let data;try{data=await res.json()}catch{throw Error("Réponse API invalide")}if(!res.ok)throw Error(data.message||data.error||"Erreur HTTP "+res.status);return data;}
 async function health(){try{const data=await request("/api/health");$("health").textContent="● API "+data.status+" / "+data.version;$("connection").textContent="● API CONNECTÉE";}catch(e){$("health").textContent="● API indisponible";$("connection").textContent="● HORS LIGNE";}}
 function renderGraph(host,model,selectable=false,trace=[]){const nodes=model.nodes||[];const n=nodes.length;const w=580,h=Math.max(140,90+n*66);const y=i=>43+i*66;let svg='<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Graphe orienté des agents" style="max-height:680px">';
 const idx=Object.fromEntries(nodes.map((v,i)=>[v,i]));for(const [a,b] of model.edges||[]){if(idx[a]===undefined||idx[b]===undefined)continue;svg+='<line x1="290" y1="'+(y(idx[a])+17)+'" x2="290" y2="'+(y(idx[b])-17)+'" stroke="#6996ce" stroke-width="2"/>';svg+='<path d="M284 '+(y(idx[b])-24)+' L290 '+(y(idx[b])-17)+' L296 '+(y(idx[b])-24)+'" fill="none" stroke="#6996ce" stroke-width="2"/>';}
@@ -21,3 +21,23 @@ $("refreshGraph").addEventListener("click",loadGraph);
 $("clearHistory").addEventListener("click",()=>{history=[];latest=null;$("history").textContent="Aucune exécution";$("output").textContent='{"message":"Aucune exécution"}';});
 $("downloadJson").addEventListener("click",()=>{if(!latest){$("output").textContent="Aucun résultat à exporter";return;}const blob=new Blob([JSON.stringify(latest,null,2)],{type:"application/json"});const link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="agentmesh-result.json";link.click();URL.revokeObjectURL(link.href);});
 health();loadGraph();show("overview");
+
+$("runHybrid").addEventListener("click",async()=>{const b=$("runHybrid");b.disabled=true;$("hybridNotice").textContent="Comparaison en cours…";try{
+const requirements=$("hybridRequirements").value.split(";").map(s=>s.trim()).filter(Boolean);
+const text=await request("/api/run",{mode:"hybrid",branch:"text",objective:$("hybridObjective").value,requirements});
+const matrix=[[$("w00").valueAsNumber,$("w01").valueAsNumber],[$("w10").valueAsNumber,$("w11").valueAsNumber]], target=[$("targetA").valueAsNumber,$("targetB").valueAsNumber];
+const numeric=await request("/api/run",{mode:"hybrid",branch:"numeric",matrix,target,gain:Number($("gain").value)});
+const diagnostic=await request("/api/run",{mode:"diagnostics",matrix,state:numeric.output.state,target});
+$("hybridComparison").innerHTML=[
+["Conformité textuelle",Math.round(text.diagnostics.fraction_passing*100)+" %"],
+["Révisions",text.output.metrics.revision_calls],
+["Résidu numérique",numeric.output.residual.toExponential(3)],
+["Itérations",numeric.output.iterations],
+["Contraction suffisante",numeric.diagnostics.contraction_sufficient?"Oui":"Non certifiée"],
+["Conditionnement estimé",diagnostic.conditioning.condition_number===null?"Singulier / indéterminé":Number(diagnostic.conditioning.condition_number).toFixed(4)]
+].map(([a,v])=>'<div class="analysis-cell"><small>'+escapeHTML(a)+'</small><strong>'+escapeHTML(v)+'</strong></div>').join("");
+$("conditionDetails").textContent=JSON.stringify(diagnostic.conditioning,null,2);
+$("hybridJson").textContent=JSON.stringify({text,numeric,diagnostic},null,2);
+$("hybridNotice").textContent="Comparaison terminée (métriques distinctes, non agrégées).";
+record("hybrid",{accepted:text.accepted&&numeric.accepted,text,numeric,diagnostic});
+}catch(e){$("hybridNotice").textContent="Erreur : "+e.message}finally{b.disabled=false}});
