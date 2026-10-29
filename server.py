@@ -51,6 +51,30 @@ class Handler(SimpleHTTPRequestHandler):
                     if not isinstance(term,str): raise ValueError("contains must be a string")
                     constraints.append(contains(term))
                 return self.respond(200,Mesh(max_attempts=attempts).run(Task(objective,constraints)).to_dict())
+            if mode=="adaptive":
+                from agentmesh.adaptive import AdaptiveMesh, Rule
+                objective=data.get("objective","")
+                if not isinstance(objective,str) or not 0<len(objective.strip())<=5000:
+                    raise ValueError("objective must be nonempty and at most 5000 characters")
+                attempts=int(data.get("attempts",4))
+                if not 1<=attempts<=10:
+                    raise ValueError("attempts must be between 1 and 10")
+                needs=data.get("requirements",["Review:","Plan:"])
+                if not isinstance(needs,list) or len(needs)>10 or any(not isinstance(v,str) or not v or len(v)>120 for v in needs):
+                    raise ValueError("requirements must be a list of short nonempty strings")
+                # Safe local illustrative revision: append only missing markers.
+                def produce(goal):
+                    return "Analysis: " + goal
+                def revise(goal,feedback):
+                    output=feedback.previous_output
+                    for name in feedback.violations:
+                        marker=needs[int(name.split(":")[1])]
+                        output += "\\n" + marker + " completed locally."
+                    return output
+                rules=[Rule(f"required:{i}",lambda text,marker=marker: marker in text)
+                       for i,marker in enumerate(needs)]
+                result=AdaptiveMesh(produce,revise,rules,max_attempts=attempts).run(objective)
+                return self.respond(200,result.to_dict())
             if mode=="inverse":
                 from agentmesh.inverse import inverse_linear,reflexive_feedback
                 from agentmesh.micro import cross_sensitivity,interval_feasibility,feedback_stability
