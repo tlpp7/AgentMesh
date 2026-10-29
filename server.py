@@ -89,6 +89,21 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(data,dict):
                 raise ValueError("object expected")
             mode=data.get("mode","agents")
+            if mode=="gain_search":
+                from agentmesh.gain_control import compare_gains
+                from dataclasses import asdict
+                matrix=data.get("matrix",[[1,.3],[.2,1]])
+                target=data.get("target",[2,1])
+                if not isinstance(matrix,list) or not matrix or len(matrix)>10 or any(not isinstance(row,list) or len(row)!=len(matrix) for row in matrix) or not isinstance(target,list) or len(target)!=len(matrix):
+                    raise ValueError("invalid square matrix or target")
+                tolerance=float(data.get("tolerance",1e-7))
+                max_steps=int(data.get("max_steps",100))
+                if not 1<=max_steps<=1000: raise ValueError("invalid budget")
+                gains=data.get("gains",[0.1,0.25,0.5,0.75,1.0])
+                if not isinstance(gains,list) or not 1<=len(gains)<=20:
+                    raise ValueError("invalid gain list")
+                result=compare_gains(matrix,[0.0]*len(target),target,gains=gains,max_steps=max_steps,tolerance=tolerance)
+                return self.respond(200,{"best":asdict(result["best"]),"candidates":[asdict(c) for c in result["candidates"]]})
             if mode=="diagnostics":
                 from agentmesh.diagnostics import conditioning,residual_report
                 a=data.get("matrix",[[1,.3],[.2,1]])
