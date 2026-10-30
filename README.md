@@ -11,6 +11,20 @@ AgentMesh is an open-source Python laboratory for **multi-agent execution, const
 
 > **Scope:** This is a working research prototype, not a production autonomous AI platform. The shipped demonstration agents are deterministic Python functions: they do not query a large language model or prove semantic correctness.
 
+## Additive V2 modules (legacy architecture preserved)
+
+The original `server.py`, `web/` and `src/agentmesh/` pipelines are unchanged. Optional extension modules now live beside them:
+
+- FastAPI + Pydantic adapter: `apps/api/main.py` (`pip install -e '.[api]'`)
+- Independent React / TypeScript / React Flow scaffold: `apps/web-v2/`
+- Extension registry, in-process event bus and run-outcome evaluation: `src/agentmesh/{extensions,events,evaluations}.py`
+- Optional PostgreSQL connection factory and OpenTelemetry adapter.
+- Existing OpenAI, GitHub and numerical engines remain in place.
+
+The PostgreSQL connection factory is **not a storage migration**. The event bus is **not durable**. The optional React frontend is currently a standalone graph demonstration, not yet wired to the API. MCP transport, Redis, Temporal and native Rust/Zig numerical bindings are **planned, not implemented**.
+
+See [Modular V2 implementation guide](docs/modular-v2.md) for installation, entry points, compatibility and limitations.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
