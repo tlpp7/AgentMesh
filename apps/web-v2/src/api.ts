@@ -20,3 +20,7 @@ export type StoredEvent={sequence:number;agent:string;status:string;timestamp:st
 export const listRuns=()=>api<{runs:StoredRun[]}>("/api/v2/runs?limit=30");
 export const getRun=(id:string)=>api<RunResult>("/api/v2/runs/"+encodeURIComponent(id));
 export const getEvents=(id:string,after=0)=>api<{run_id:string;events:StoredEvent[]}>("/api/v2/runs/"+encodeURIComponent(id)+"/events?after="+after);
+
+export type TelemetryEntry={trace_id:string;run_id?:string|null;accepted:boolean;duration_ms:number;event_count:number;timestamp:string};
+export type TelemetrySnapshot={schema_version:number;scope:string;count:number;accepted_count:number;p95_duration_ms:number|null;runs:TelemetryEntry[]};
+export const getTelemetry=()=>api<TelemetrySnapshot>("/api/v2/telemetry?limit=30");
