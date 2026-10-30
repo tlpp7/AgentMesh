@@ -1,31 +1,36 @@
-"""Optional FastAPI adapter; original server.py stays unchanged."""
-from agentmesh.core import Mesh, Task
-from agentmesh.constraints import nonempty
+"""R1 FastAPI adapter. Legacy server.py is preserved and remains separate."""
+import os
+import hmac
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
+from .schemas import RunRequest, HealthResponse, ErrorResponse
+from agentmesh.core import Mesh,Task
+from agentmesh.constraints import nonempty,contains
+from agentmesh.observability import analyze_run
+
+def require_token(authorization: str | None = Header(default=None)):
+    token=os.getenv("AGENTMESH_API_TOKEN","")
+    if token and not hmac.compare_digest(authorization or "", "Bearer "+token):
+        raise HTTPException(status_code=401,detail="unauthorized")
 
 def create_app():
-    try:
-        from fastapi import FastAPI, HTTPException
-        from pydantic import BaseModel, Field
-    except ImportError as exc:
-        raise RuntimeError("Install optional extra: pip install -e '.[api]'") from exc
-    class RunRequest(BaseModel):
-        objective: str = Field(min_length=1,max_length=5000)
-        attempts: int = Field(default=3,ge=1,le=10)
-    app=FastAPI(title="AgentMesh Optional API",version="0.1.0")
+    app=FastAPI(title="AgentMesh Optional API",version="0.2.0")
     @app.get("/")
     def index():
         return {"service":"AgentMesh optional FastAPI","documentation":"/docs","health":"/api/health","run":"/api/v2/run","legacy_dashboard":"Use server.py on port 8000"}
-    @app.get("/api/health")
-    def health():return {"status":"ok","adapter":"fastapi","legacy_preserved":True}
-    @app.post("/api/v2/run")
-    def run(payload:RunRequest):
-        return Mesh(max_attempts=payload.attempts).run(Task(payload.objective,[nonempty()])).to_dict()
+    @app.get("/api/health",response_model=HealthResponse)
+    def health():
+        return HealthResponse()
+    @app.post("/api/v2/run",dependencies=[Depends(require_token)])
+    def run(payload: RunRequest):
+        constraints=[nonempty()]
+        if payload.contains:constraints.append(contains(payload.contains))
+        result=Mesh(max_attempts=payload.attempts).run(Task(payload.objective,constraints)).to_dict()
+        result["observability"]=analyze_run({**result,"mode":"agents"})
+        return result
+    @app.exception_handler(HTTPException)
+    async def http_error(request,exc):
+        return JSONResponse(status_code=exc.status_code,content={"error":str(exc.detail)})
     return app
 
-# For ASGI: uvicorn apps.api.main:app (requires optional dependency)
-try:
-    from fastapi import FastAPI
-except ImportError:
-    app=None
-else:
-    app=create_app()
+app=create_app()
