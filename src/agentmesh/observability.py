@@ -16,6 +16,10 @@ def analyze_run(payload: dict, *, max_events: int = 500) -> dict:
         trace = payload.get("output", {}).get("trace", []) if isinstance(payload.get("output"), dict) else []
     if not isinstance(trace, list):
         trace = []
+    if not trace and isinstance(payload.get("output"), dict):
+        nested = payload["output"].get("output")
+        if isinstance(nested, dict) and isinstance(nested.get("trace"), list):
+            trace = nested["trace"]
     events = []
     for seq, raw in enumerate(trace[:max_events]):
         if not isinstance(raw, dict):
