@@ -216,6 +216,24 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## P0 — Hardening and typed contracts (October 2026)
+
+Phase P0 adds Python contracts at `src/agentmesh/contracts.py` (versioned `Event` and `RunEnvelope` dataclasses) and targeted HTTP security regressions in `tests/test_p0_security.py`.
+
+**Implemented safeguards:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, a restrictive Content Security Policy, and rejection of explicitly cross-origin POST requests. The existing opt-in API bearer-token check remains in place. The SSE stream now uses actual newline-delimited event framing.
+
+**Important limitations:** This is local-prototype hardening only, *not production certification*. API authentication is optional, no end-user roles or rate limiting exist, and the static frontend does not provide a credential UI. Keep Codespaces ports private. Python typed contracts are introduced but not yet enforced on every existing API mode; do not confuse the type declarations with complete end-to-end runtime validation. A production deployment needs a proper identity provider, network controls, comprehensive threat modeling, audit logging and security review.
+
+### P0 validation commands
+
+```bash
+python -m pytest tests/test_p0_security.py tests/test_web.py -v
+python -m pytest -q
+python -m compileall -q src server.py
+```
+
+Do not claim the suite passes until the current GitHub Actions run or Codespaces execution confirms it.
+
 ## Testing and development
 
 ```bash
