@@ -18,7 +18,7 @@ class ExtensionRegistry:
         if key in self._items:raise ValueError("duplicate extension")
         self._items[key]=extension
     def list(self, category=None):
-        return sorted({"name":e.name,"category":e.category} for e in self._items.values()
-                      if category is None or e.category==category,key=lambda x:(x["category"],x["name"]))
+        return sorted(({"name":e.name,"category":e.category} for e in self._items.values()
+                      if category is None or e.category==category),key=lambda x:(x["category"],x["name"]))
     def create(self,category,name,**kwargs):
         return self._items[(category,name)].factory(**kwargs)
