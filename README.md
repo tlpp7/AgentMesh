@@ -91,6 +91,14 @@ python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
 
 Use **Historique SQLite R3 → Actualiser → Rejouer** in the optional React dashboard to inspect stored traces. The replay is **historical event retrieval**, not live execution streaming or agent re-execution. See [R3 event journal guide](docs/r3-events.md). Redis, PostgreSQL migrations and real-time cross-worker events remain future work.
 
+## R5 — Performance and security regression gates
+
+R5 adds an opt-in four-scenario synthetic benchmark suite and a baseline comparator, plus regression tests for authentication configuration and the existing R4 tool allowlist. It does **not** replace existing services or enable unmeasured native optimizations.
+
+Run `python -m pytest tests/test_r5_validation.py -v`, then `python scripts/r5_validation.py --output r5-baseline.json` and `python scripts/r5_validation.py --baseline r5-baseline.json --output r5-current.json --fail-on-regression`. Benchmarks require repeat measurements before performance conclusions.
+
+See [R5 validation guide](docs/r5-optimization-security.md).
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
