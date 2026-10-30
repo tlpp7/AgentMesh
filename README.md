@@ -110,6 +110,21 @@ python scripts/r6_release_gate.py --frontend --output r6-with-frontend.json
 
 Read [R6 deployment validation and rollback](docs/r6-release.md) before deploying. A green R6 gate alone is **not** a security certification or proof of production readiness.
 
+## R7 — Browser E2E and persistence compatibility
+
+R7 adds Playwright Chromium tests for the optional React → FastAPI → SQLite path, plus Python tests for persisted run retrieval through a recreated API instance. GitHub CI has a separate R7 job. The original dashboard, API and core remain unchanged.
+
+```bash
+python -m pip install -e '.[dev,api]' httpx
+python -m pytest tests/test_r7_restart.py -v
+cd apps/web-v2
+npm install
+npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+See [R7 E2E test guide](docs/r7-e2e.md). The browser tests must actually pass before R7 is considered validated.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
