@@ -216,6 +216,22 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## Codespaces troubleshooting — Port 8000 and private API
+
+If the forwarded page fails to load after P5, the startup guard is likely rejecting `--host 0.0.0.0`. Start it with an explicit opt-in and a strong token; keep the Codespaces port **Private**:
+
+```bash
+cd /workspaces/AgentMesh
+source .venv/bin/activate
+export AGENTMESH_ALLOW_REMOTE=1
+export AGENTMESH_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python server.py --host 0.0.0.0 --port 8000
+```
+
+For diagnostics, verify `curl -i http://127.0.0.1:8000/api/health` and `curl -i http://127.0.0.1:8000/api/architecture -H "Authorization: Bearer $AGENTMESH_API_TOKEN"`.
+
+The dashboard now provides **Connecter l'API** to enter the same token. It stays in JavaScript memory for the current page only, and must be reentered after reload. Do not put tokens in URLs or copy them to public chats. This is a prototype authorization mechanism, not production-grade authentication. If an old server process is still running, stop it before restarting.
+
 ## P5 — Deployment safety and retention
 
 P5 introduces guarded deployment settings and manual maintenance. **Not production-certified.**
