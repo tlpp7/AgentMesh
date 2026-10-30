@@ -216,6 +216,44 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## P1 — OpenAI Model Gateway and configurable LLM agents
+
+P1 adds an **optional OpenAI Responses API** adapter with bounded output tokens and a configurable pipeline of named agents. The default installation and existing deterministic demos do not require credentials or paid model calls.
+
+**Offline tests** use injected fake Responses clients; they validate the request contract without incurring fees.
+
+### Install
+
+```bash
+python -m pip install -e '.[dev,openai]'
+```
+
+Set the following environment variables in **Codespaces Secrets** or your server's secret manager (never commit API keys):
+
+```bash
+export AGENTMESH_ENABLE_LLM=1
+export AGENTMESH_OPENAI_MODEL="YOUR_ACCESSIBLE_MODEL"
+export AGENTMESH_API_TOKEN="YOUR_LONG_RANDOM_LOCAL_TOKEN"
+# OPENAI_API_KEY must be supplied from a protected secret.
+python server.py --host 127.0.0.1 --port 8000
+```
+
+Call `POST /api/run` with `mode: "llm"`, an `objective`, optional `roles` (each with `name` and `instructions`), and `max_output_tokens` (1–4096). The API rejects requests when the LLM feature flag or token protection is missing. Each agent calls the configured model in order; by default there is only one pipeline attempt.
+
+```json
+{
+  "mode": "llm",
+  "objective": "Analyze this architecture and propose testable improvements",
+  "max_output_tokens": 256,
+  "roles": [
+    {"name": "analyst", "instructions": "Identify assumptions and risks."},
+    {"name": "reviewer", "instructions": "Critique the proposal using verifiable criteria."}
+  ]
+}
+```
+
+**Limits:** This is not yet a production model proxy. There is no tool execution by LLM agents, no prompt-injection sandbox, no global spending ceiling, no durable per-user quota, no semantic evaluation and no browser form for API credentials. Output token limits are **not** a monetary spending limit. Provider request errors are sanitized, but the standard sequential trace may store generated agent outputs; avoid sensitive prompts if SQLite run persistence is enabled. Treat human review as mandatory before applying generated code changes.
+
 ## P0 — Hardening and typed contracts (October 2026)
 
 Phase P0 adds Python contracts at `src/agentmesh/contracts.py` (versioned `Event` and `RunEnvelope` dataclasses) and targeted HTTP security regressions in `tests/test_p0_security.py`.
