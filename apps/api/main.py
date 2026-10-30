@@ -12,6 +12,9 @@ def create_app():
         objective: str = Field(min_length=1,max_length=5000)
         attempts: int = Field(default=3,ge=1,le=10)
     app=FastAPI(title="AgentMesh Optional API",version="0.1.0")
+    @app.get("/")
+    def index():
+        return {"service":"AgentMesh optional FastAPI","documentation":"/docs","health":"/api/health","run":"/api/v2/run","legacy_dashboard":"Use server.py on port 8000"}
     @app.get("/api/health")
     def health():return {"status":"ok","adapter":"fastapi","legacy_preserved":True}
     @app.post("/api/v2/run")
