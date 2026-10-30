@@ -216,6 +216,31 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## P2 — Live agent execution and streaming observability
+
+P2 instruments `AsyncMesh.run(objective, on_event=callback)` with timestamped, ordered **started**, **completed**, **failed**, and **blocked** events. Existing asynchronous execution and dependency handling remain in place.
+
+### Demonstration from the dashboard
+
+Open **Graphe d'agents → Exécution en direct**, then run the demo. Each agent appears active as events are delivered. Choose `Échec Proposer` to see a failure propagate to a blocked downstream node. A stop button cancels the browser stream, but **does not guarantee cancellation of server-side work**.
+
+The new `POST /api/live/run` streams SSE frames over a fetch response. Unlike the older `GET /api/events` (persisted run notifications), this endpoint exposes **live steps of an executing demo DAG**. It is not a stream of arbitrary real LLM agents. The demo is deliberately bounded, deterministic and does not spend API credits.
+
+```bash
+curl -N -X POST http://127.0.0.1:8000/api/live/run \\
+  -H "Content-Type: application/json" \\
+  -d '{"objective":"Inspect my workflow","delay_ms":250,"fail_agent":""}'
+```
+
+Set `fail_agent` to `"proposer"` or `"critic"` to test failures.
+
+```bash
+python -m pytest tests/test_p2_live.py tests/test_async_engine.py -v
+python -m pytest -q
+```
+
+Security / production limitations: the current optional bearer token applies to the SSE route, but there is no full multi-user authentication, no event queue with replay/acknowledgments, no server-side job cancellation, no distributed pub/sub and no rate limiting. Keep deployment private. Future iterations will instrument the actual OpenAI LLM pipeline using the same event contract and provide correlation IDs, backpressure and persistence.
+
 ## P1 — OpenAI Model Gateway and configurable LLM agents
 
 P1 adds an **optional OpenAI Responses API** adapter with bounded output tokens and a configurable pipeline of named agents. The default installation and existing deterministic demos do not require credentials or paid model calls.
