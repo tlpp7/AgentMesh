@@ -216,6 +216,34 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## P5 — Deployment safety and retention
+
+P5 introduces guarded deployment settings and manual maintenance. **Not production-certified.**
+
+- Local binding (127.0.0.1) is permitted by default.
+- Non-loopback binding requires both AGENTMESH_ALLOW_REMOTE=1 and a 32+ character AGENTMESH_API_TOKEN.
+- The existing frontend cannot yet securely supply API credentials. A private forwarded port does not solve this automatically.
+- SQLite backups and optional pruning are available through scripts/p5_maintenance.py.
+- Automatic backups, RBAC, TLS termination, rate limiting, multi-tenant separation and recovery drills are not yet implemented.
+
+Local setup:
+
+```bash
+export AGENTMESH_DB_PATH="$PWD/.local/agentmesh.sqlite3"
+python server.py --host 127.0.0.1 --port 8000
+```
+
+Maintenance:
+
+```bash
+python scripts/p5_maintenance.py --database .local/agentmesh.sqlite3 --backup .local/runs-backup.sqlite3
+python scripts/p5_maintenance.py --database .local/agentmesh.sqlite3 --backup .local/runs-backup.sqlite3 --keep 1000
+python -m pytest tests/test_p5_deployment.py -v
+python -m pytest -q
+```
+
+For Codespaces, binding 0.0.0.0 needs explicit authorization. Keep the forwarded port private and use a suitable authenticated client; avoid public exposure of the development server.
+
 ## P3 — Scoped GitHub review automation
 
 P3 introduces an opt-in **GitHub REST adapter** (`github_workflow.py`) and an issue-to-review-plan workflow. It is designed to complement ChatGPT's GitHub MCP connector, **not** to impersonate or expose a native MCP server.
