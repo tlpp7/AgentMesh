@@ -21,6 +21,8 @@ class Handler(SimpleHTTPRequestHandler):
     def authorized(self):
         return not TOKEN or hmac.compare_digest(self.headers.get("Authorization",""),"Bearer "+TOKEN)
     def run_response(self,mode,payload):
+        from agentmesh.observability import analyze_run
+        payload["observability"] = analyze_run({**payload, "mode": mode})
         database=store()
         if database:
             accepted=payload.get("accepted",payload.get("feedback",{}).get("converged",False))
@@ -65,6 +67,23 @@ class Handler(SimpleHTTPRequestHandler):
             except (ConnectionError,OSError):
                 return
             return
+        if route=="/api/observability":
+            db=store()
+            if not db:
+                return self.respond(200,{"enabled":False,"runs":[]})
+            runs=db.list(limit=30)
+            summaries=[]
+            for run in runs:
+                payload=db.get(run["id"])
+                if payload is None: continue
+                view=payload.get("observability")
+                if view is None:
+                    from agentmesh.observability import analyze_run
+                    view=analyze_run({**payload,"mode":run["mode"]})
+                summaries.append({"id":run["id"],"created":run["created"],
+                                  "accepted":run["accepted"],"failure_count":view["failure_count"],
+                                  "event_count":view["event_count"],"mode":run["mode"]})
+            return self.respond(200,{"enabled":True,"runs":summaries})
         if route=="/api/runs":
             db=store()
             return self.respond(200,{"runs":db.list() if db else [],"enabled":bool(db)})
