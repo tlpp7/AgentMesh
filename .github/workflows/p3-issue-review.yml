@@ -1,0 +1,33 @@
+name: P3 Issue Review Plan
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to inspect
+        required: true
+        type: number
+permissions:
+  contents: read
+  issues: read
+jobs:
+  review-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Build scoped, read-only review plan
+        env:
+          AGENTMESH_GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/github_issue_plan.py --repo "$GITHUB_REPOSITORY" --issue "$ISSUE_NUMBER" --output issue-plan.json
+      - name: Upload review plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentmesh-issue-plan
+          path: issue-plan.json
+          retention-days: 7
