@@ -34,6 +34,6 @@ print(solve_constraints(rules))
 
 ## Constraints and limitations
 
-This is not a general-purpose SAT/SMT, nonlinear solver, linear-programming solver or certified floating-point proof system. Numbers are finite Python floats and close-to-zero comparisons use a tolerance, so do not treat near-boundary cases as rigorous proofs. Limits: at most 64 constraints and 32 variables, suitable for controlled experiments; the explanation step can run the feasibility algorithm repeatedly. No dynamic dispatch from arbitrary LLM text to this solver and no external side effects.
+This is not a general-purpose SAT/SMT, nonlinear solver, linear-programming solver or certified floating-point proof system. Numbers are finite Python floats with ordinary floating-point comparison, so rounding and near-boundary cases must not be treated as rigorous proofs. Limits: at most 64 constraints and 32 variables, suitable for controlled experiments; the explanation step can run the feasibility algorithm repeatedly. No dynamic dispatch from arbitrary LLM text to this solver and no external side effects.
 
 Next planned modules: R16 inverse parameter inference, R17 inter-model coupling, R18 decision control, R19 simulation. They are not implemented by R15.
