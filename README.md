@@ -60,6 +60,25 @@ python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
 
 The new `POST /api/v2/run` supports `objective`, `attempts` and `contains`. The old `server.py` on port 8000 and `web/` are preserved. **Other original modes are not migrated yet.** See [R1 API compatibility guide](docs/r1-api.md) for the complete scope and limitations.
 
+## R2 — React frontend connected to FastAPI (opt-in)
+
+R2 upgrades the optional `apps/web-v2/` application from a static graph mockup to a typed, interactive frontend that runs deterministic tasks through the separately deployed FastAPI adapter. The original Python server and original `web/` dashboard stay unchanged.
+
+The React dashboard includes an objective/constraints editor, bearer token input kept in browser memory, interactive React Flow graph, status summary, searchable execution traces, and JSON export. Vite proxies `/api` to the FastAPI service during development.
+
+```bash
+# Terminal A (FastAPI on 8001)
+python -m pip install -e '.[dev,api]' httpx
+python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
+
+# Terminal B (React frontend on 5173)
+cd apps/web-v2
+npm install
+npm run typecheck && npm run build && npm run dev
+```
+
+See [R2 frontend setup and limitations](docs/r2-frontend.md). This frontend shows **post-run trace results**, not live model streaming. Other legacy modes and production auth remain outside its current scope.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
