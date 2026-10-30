@@ -76,3 +76,40 @@ jobs:
       - name: Test browser flows
         working-directory: apps/web-v2
         run: npm run test:e2e
+
+  p0-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Python optional dependencies
+        run: python -m pip install -e '.[dev,api]' httpx
+      - name: Install frontend
+        working-directory: apps/web-v2
+        run: npm install
+      - name: P0 backend regression gate
+        run: python -m pytest tests/test_p0_quality_gates.py tests/test_r9_security.py tests/test_r1_api.py -q
+      - name: P0 quality baseline
+        run: python scripts/quality_baseline.py --execute --output .local/quality-baseline.json
+      - name: Browser dependencies
+        working-directory: apps/web-v2
+        run: npx playwright install --with-deps chromium
+      - name: P0 accessibility E2E
+        working-directory: apps/web-v2
+        run: CI=1 npx playwright test e2e/p0-accessibility.spec.ts
+      - name: Archive P0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-quality-evidence
+          path: |
+            .local/quality-baseline.json
+            apps/web-v2/test-results/
+            apps/web-v2/playwright-report/
+          retention-days: 14
