@@ -8,6 +8,7 @@ import json
 import os
 import hmac
 import time
+import asyncio
 
 ROOT = Path(__file__).resolve().parent
 TOKEN = os.getenv("AGENTMESH_API_TOKEN", "")
@@ -104,7 +105,53 @@ class Handler(SimpleHTTPRequestHandler):
             return self.respond(200,{"nodes":["Input","Analyzer","Proposer","Critic","Constraints","Supervisor","Result"],"edges":[["Input","Analyzer"],["Analyzer","Proposer"],["Proposer","Critic"],["Critic","Constraints"],["Constraints","Supervisor"],["Supervisor","Result"]]})
         if route=="/": self.path="/index.html"
         return super().do_GET()
+    def stream_demo(self):
+        if not self.authorized():
+            return self.respond(401,{"error":"unauthorized"})
+        origin=self.headers.get("Origin")
+        if origin:
+            from urllib.parse import urlsplit
+            parsed=urlsplit(origin)
+            if parsed.scheme not in ("http","https") or parsed.netloc != self.headers.get("Host"):
+                return self.respond(403,{"error":"cross_origin_request_denied"})
+        try:
+            size=int(self.headers.get("Content-Length","0"))
+            if not 1<=size<=4096: return self.respond(413,{"error":"invalid_payload_size"})
+            body=json.loads(self.rfile.read(size))
+            if not isinstance(body,dict): raise ValueError("object expected")
+            objective=body.get("objective","")
+            delay=body.get("delay_ms",180)
+            failure=body.get("fail_agent","")
+            if not isinstance(objective,str) or not 1<=len(objective.strip())<=1000:
+                raise ValueError("invalid objective")
+            if type(delay) is not int or not 10<=delay<=1000:
+                raise ValueError("invalid delay")
+            if failure not in ("","analyzer","proposer","critic"):
+                raise ValueError("invalid fail_agent")
+        except (TypeError,ValueError,json.JSONDecodeError) as exc:
+            return self.respond(400,{"error":"invalid_request"})
+        from agentmesh.live_demo import demo_run
+        def send(kind, payload):
+            frame=("event: "+kind+"\u005cn"+"data: "+json.dumps(payload,ensure_ascii=False)+"\u005cn\u005cn").encode("utf-8")
+            self.wfile.write(frame)
+            self.wfile.flush()
+        self.send_response(200)
+        self.send_header("Content-Type","text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control","no-cache, no-transform")
+        self.send_header("X-Accel-Buffering","no")
+        self.end_headers()
+        try:
+            result=asyncio.run(demo_run(objective,lambda event:send("agent",event),delay_ms=delay,fail_agent=failure))
+            send("result",result.to_dict())
+        except (BrokenPipeError,ConnectionResetError):
+            return
+        except Exception:
+            try: send("error",{"error":"execution_failed"})
+            except OSError: pass
+
     def do_POST(self):
+        if urlparse(self.path).path=="/api/live/run":
+            return self.stream_demo()
         if urlparse(self.path).path!="/api/run":
             return self.respond(404,{"error":"not_found"})
         if not self.authorized(): return self.respond(401,{"error":"unauthorized"})
