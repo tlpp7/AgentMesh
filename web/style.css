@@ -23,3 +23,16 @@ footer{color:#6f8aa9;text-align:right;font-size:11px;padding:24px 4px}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
 
 .chart-toggle{display:flex;align-items:center;gap:8px;color:#9db9d8;font-size:12px}.chart-toggle input[type=checkbox]{width:16px;height:16px;accent-color:#55dccb;margin:0;padding:0}
+
+/* Agent-centric topology and timeline controls */
+.graph-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.graph-toolbar .secondary{margin:0;padding:8px 12px;font-size:12px}
+.graph-toolbar span{font-size:11px;color:#71ead1;margin-right:auto}
+.graph-toolbar label{display:inline;margin:0;color:#9fb5d1;font-size:11px}
+.graph-toolbar select,#traceAgentFilter{border:1px solid #3d5a7c;border-radius:8px;background:#101f34;color:#deedff;padding:9px;font-size:12px;width:auto}
+.graph-host{min-height:400px;background:radial-gradient(circle at 50% 50%,#23496b35,transparent 55%),radial-gradient(circle,#23415e30 1px,transparent 1px) 0 0/20px 20px}
+.graph-host svg{max-width:100%;max-height:620px}
+.graph-running rect{filter:drop-shadow(0 0 10px #52e6d4);animation:mesh-pulse 1.2s ease-in-out infinite}
+@keyframes mesh-pulse{50%{opacity:.7}}
+#graphEvent{margin-top:10px;border-left:3px solid #52d9c7;background:#0c2034;padding:12px;border-radius:6px;min-height:44px}
+@media(prefers-reduced-motion:reduce){.graph-running rect{animation:none}}
