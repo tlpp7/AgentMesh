@@ -3,7 +3,7 @@ import {createRoot} from "react-dom/client";
 import {ReactFlow,Background,Controls,MarkerType,type Node,type Edge} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./dashboard.css";
-import {health,execute,setToken,type RunResult} from "./api";
+import {health,execute,setToken,listRuns,getRun,getEvents,type StoredRun,type RunResult} from "./api";
 
 const names=["analyzer","proposer","critic"];
 function App(){
@@ -17,6 +17,9 @@ function App(){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [search,setSearch]=useState("");
+ const [savedRuns,setSavedRuns]=useState<StoredRun[]>([]);
+ const [historyError,setHistoryError]=useState("");
+ const [replayCount,setReplayCount]=useState<number|null>(null);
  useEffect(()=>{health().then(data=>setConnection(data.status==="ok"?"API connectée":"API indisponible")).catch(()=>setConnection("API hors ligne"));},[]);
  const events=result?.trace??[];
  const nodes=useMemo<Node[]>(()=>{
@@ -37,13 +40,21 @@ function App(){
  const filtered=events.filter(e=>[e.agent,e.status,e.error_type].join(" ").toLowerCase().includes(search.toLowerCase()));
  async function run(){
   setError("");setBusy(true);
-  try{const data=await execute({objective,attempts,...(contains?{contains}:{})});setResult(data);}
+  try{const data=await execute({objective,attempts,...(contains?{contains}:{})});setResult(data);if(data.run_id)await refreshHistory();}
   catch(exc){setError(exc instanceof Error?exc.message:String(exc));}
   finally{setBusy(false);}
  }
+ async function refreshHistory(){
+  try{const data=await listRuns();setSavedRuns(data.runs);setHistoryError("");}
+  catch(e){setHistoryError(e instanceof Error?e.message:String(e));}
+ }
+ async function inspectRun(id:string){
+  try{setHistoryError("");const [data,replay]=await Promise.all([getRun(id),getEvents(id)]);setResult(data);setReplayCount(replay.events.length);}
+  catch(e){setHistoryError(e instanceof Error?e.message:String(e));}
+ }
  return <div className="layout">
   <aside className="sidebar"><div className="brand">◈ AgentMesh</div><div className="side-caption">CONTROL PLANE · R2 EXPERIMENTAL</div>
-   <a href="#network">Réseau d'agents</a><a href="#execution">Exécutions</a><a href="#diagnostics">Diagnostics</a>
+   <a href="#history">Historique persistant</a><a href="#network">Réseau d'agents</a><a href="#execution">Exécutions</a><a href="#diagnostics">Diagnostics</a>
    <p className="muted">Le dashboard historique reste sur le port 8000.</p>
   </aside>
   <main className="main">
@@ -60,6 +71,15 @@ function App(){
     <section className="card" id="network"><div className="heading"><h2>Graphe d'agents</h2><span className="muted">Sélection interactive</span></div>
      <div className="flow"><ReactFlow nodes={nodes} edges={edges} nodesDraggable={false} onNodeClick={(_,node)=>setSelected(node.id)} fitView><Background color="#27445f"/><Controls/></ReactFlow></div>
      <p className="muted">Nœud sélectionné : <strong>{selected}</strong> — représentation de la chaîne déterministe, pas un streaming temps réel.</p>
+    </section>
+    <section className="card span2" id="history"><div className="heading"><h2>Historique SQLite R3</h2><button onClick={refreshHistory}>Actualiser</button></div>
+     <p className="muted">Historique disponible uniquement lorsque AGENTMESH_DB_PATH est configuré sur FastAPI.</p>
+     {historyError&&<p className="error" role="alert">Historique : {historyError}</p>}
+     {replayCount!==null&&<p className="success">Événements relus : {replayCount}</p>}
+     <div className="trace-wrap"><table className="trace"><thead><tr><th>Identifiant</th><th>Date UTC</th><th>Accepté</th><th>Action</th></tr></thead><tbody>
+      {savedRuns.map(item=><tr key={item.id}><td>{item.id.slice(0,12)}</td><td>{item.created}</td><td>{item.accepted?"Oui":"Non"}</td><td><button onClick={()=>inspectRun(item.id)}>Rejouer</button></td></tr>)}
+      {!savedRuns.length&&<tr><td colSpan={4} className="muted">Aucune exécution chargée</td></tr>}
+     </tbody></table></div>
     </section>
     <section className="card span2" id="diagnostics"><div className="heading"><h2>Inspection et diagnostics</h2><span className="pill">{result?(result.accepted?"Accepté":"Rejeté"):"Aucune exécution"}</span></div>
      <div className="stats"><div className="stat"><span className="muted">Tentatives</span><strong>{result?.attempts??"—"}</strong></div><div className="stat"><span className="muted">Événements</span><strong>{events.length}</strong></div><div className="stat"><span className="muted">Violations</span><strong>{result?.violations?.length??"—"}</strong></div></div>
