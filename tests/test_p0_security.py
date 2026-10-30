@@ -54,3 +54,15 @@ def test_typed_contract_roundtrip():
 def test_contract_rejects_invalid(kwargs):
     with pytest.raises(ValueError):
         Event(**kwargs)
+
+def test_bearer_token_protection_remains_enabled(endpoint, monkeypatch):
+    import server
+    monkeypatch.setattr(server, "TOKEN", "a"*40)
+    from urllib.error import HTTPError
+    with pytest.raises(HTTPError) as denied:
+        urlopen(endpoint + "/api/architecture", timeout=3)
+    assert denied.value.code == 401
+    request=Request(endpoint + "/api/architecture",
+        headers={"Authorization": "Bearer " + "a"*40})
+    with urlopen(request,timeout=3) as authorized:
+        assert authorized.status == 200
