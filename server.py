@@ -2,6 +2,8 @@
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
+from urllib.request import url2pathname
+from ipaddress import ip_address
 import json
 import os
 import hmac
@@ -18,6 +20,12 @@ def store():
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,directory=str(ROOT / "web"),**kwargs)
+    def end_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+        super().end_headers()
     def authorized(self):
         return not TOKEN or hmac.compare_digest(self.headers.get("Authorization",""),"Bearer "+TOKEN)
     def run_response(self,mode,payload):
@@ -57,11 +65,11 @@ class Handler(SimpleHTTPRequestHandler):
                     newest=entries[0]["id"] if entries else ""
                     if newest!=last:
                         payload=json.dumps({"latest":entries[0] if entries else None},ensure_ascii=False)
-                        self.wfile.write(("event: runs\\ndata: "+payload+"\\n\\n").encode())
+                        self.wfile.write(("event: runs\ndata: "+payload+"\n\n").encode())
                         self.wfile.flush()
                         last=newest
                     else:
-                        self.wfile.write(b": heartbeat\\n\\n")
+                        self.wfile.write(b": heartbeat\n\n")
                         self.wfile.flush()
                     time.sleep(1)
             except (ConnectionError,OSError):
@@ -100,6 +108,12 @@ class Handler(SimpleHTTPRequestHandler):
         if urlparse(self.path).path!="/api/run":
             return self.respond(404,{"error":"not_found"})
         if not self.authorized(): return self.respond(401,{"error":"unauthorized"})
+        origin=self.headers.get("Origin")
+        if origin:
+            from urllib.parse import urlsplit
+            parsed=urlsplit(origin)
+            if parsed.scheme not in ("http","https") or parsed.netloc != self.headers.get("Host"):
+                return self.respond(403,{"error":"cross_origin_request_denied"})
         try:
             size=int(self.headers.get("Content-Length","0"))
             if not 1<=size<=65536:
