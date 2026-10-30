@@ -144,7 +144,19 @@ class Handler(SimpleHTTPRequestHandler):
                 if term:
                     if not isinstance(term,str): raise ValueError("contains must be a string")
                     constraints.append(contains(term))
-                return self.run_response(mode,Mesh(max_attempts=attempts).run(Task(objective,constraints)).to_dict())
+                try:
+                    result=Mesh(max_attempts=attempts).run(Task(objective,constraints))
+                except Exception as exc:
+                    trace=getattr(exc,"agentmesh_trace",None)
+                    if trace is None:
+                        raise
+                    return self.run_response(mode,{"accepted":False,"output":"",
+                        "attempts":trace[-1].get("attempt",1) if trace else 1,
+                        "trace":trace,"violations":[],
+                        "error":{"type":type(exc).__name__,"message":"Agent execution failed"},
+                        "metrics":{"agent_calls":sum(e.get("status")=="ok" for e in trace if "agent" in e),
+                                   "constraint_checks":0}})
+                return self.run_response(mode,result.to_dict())
             if mode=="hybrid":
                 from agentmesh.hybrid import run_hybrid
                 branch=data.get("branch","text")
