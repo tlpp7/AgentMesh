@@ -165,6 +165,12 @@ The local dashboard provides **Vue générale**, **Graphe d'agents**, **Inversio
 
 The **Laboratoire hybride** tab provides controls for comparative text/numeric execution and an exploratory matrix-conditioning estimate. It does not combine incompatible metrics into a single scientific quality score.
 
+## Agent-centric interactive graph
+
+The dashboard now displays a **radial agent topology** with the supervisor at the center, not a linear vertical flow. Select a node to inspect trace events, and use **Replay / Pause / Step / Speed** to examine an execution in sequence. The overview and graph tabs share the same visual playback.
+
+**Important:** This is **post-run trace replay**, not a live event stream during an active Python execution. True live agent updates require instrumented asynchronous events and a streaming API; the current `/api/events` endpoint only polls persisted run changes. The visualization is a conceptual topology, not proof that every displayed edge is used by the underlying sequential engine.
+
 ## Execution traces and failure diagnostics
 
 A core product capability inspired by community feedback: **diagnose failed agents instead of debugging blind**.
