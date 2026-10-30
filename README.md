@@ -138,6 +138,17 @@ python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
 
 See [R9 security capabilities and limitations](docs/r9-security.md). Multi-tenant identities, shared rate limits and fully enforced per-agent MCP scopes are planned, not delivered.
 
+## R15 — Explainable numerical feasibility
+
+The Constraints and Research track starts with a separate, bounded difference-constraints solver. It supports scalar upper/lower bounds and relations `x - y <= c`, returns feasible witnesses, and explains infeasibility with a deletion-minimal core.
+
+```bash
+python -m pytest tests/test_r15_constraint_solver.py -v
+python scripts/r15_demo.py
+```
+
+This is an offline research module, **not** a general SAT/SMT solver or a rigorous floating-point proof checker. See [R15 constraint solver guide](docs/r15-constraints.md).
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
