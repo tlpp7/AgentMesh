@@ -4,6 +4,28 @@ let latest=null;let history=[];let graphModel=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function show(name){panels.forEach(p=>p.hidden=p.dataset.panel!==name);document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.view===name));$("pageTitle").textContent=({"overview":"Vue générale","graph":"Graphe d'agents","inverse":"Inversion croisée","traces":"Traces et métriques","hybrid":"Laboratoire hybride"})[name];}
 document.querySelectorAll(".nav").forEach(b=>b.addEventListener("click",()=>show(b.dataset.view)));
+
+window.agentmeshToken="";
+$("configureApiToken").addEventListener("click",()=>{$("apiAuthPanel").hidden=!$("apiAuthPanel").hidden;});
+$("saveApiToken").addEventListener("click",async()=>{
+  const token=$("apiTokenInput").value.trim();
+  if(token.length<16){$("apiTokenNotice").textContent="Token invalide ou trop court.";return;}
+  window.agentmeshToken=token;
+  $("apiTokenInput").value="";
+  try{
+    const response=await request("/api/architecture");
+    if(!response?.nodes)throw Error("Architecture indisponible");
+    $("apiTokenNotice").textContent="API connectée. Le token reste uniquement en mémoire.";
+    $("apiAuthPanel").hidden=true;
+    await loadGraph();
+    await health();
+  }catch(error){
+    window.agentmeshToken="";
+    $("apiTokenNotice").textContent="Connexion refusée : "+error.message;
+  }
+});
+$("clearApiToken").addEventListener("click",()=>{window.agentmeshToken="";$("apiTokenInput").value="";$("apiTokenNotice").textContent="Token effacé de la mémoire.";$("apiAuthPanel").hidden=false;});
+
 async function request(path,payload){const init=payload===undefined?{}:{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)};init.headers={...(init.headers||{}),...((window.agentmeshToken||"")?{"Authorization":"Bearer "+window.agentmeshToken}:{})};const res=await fetch(path,init);let data;try{data=await res.json()}catch{throw Error("Réponse API invalide")}if(!res.ok)throw Error(data.message||data.error||"Erreur HTTP "+res.status);return data;}
 async function health(){try{const data=await request("/api/health");$("health").textContent="● API "+data.status+" / "+data.version;$("connection").textContent="● API CONNECTÉE";}catch(e){$("health").textContent="● API indisponible";$("connection").textContent="● HORS LIGNE";}}
 let replayTimer=null,replayIndex=0,replayEvents=[],selectedNode=null;
