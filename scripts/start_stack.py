@@ -22,6 +22,8 @@ def main():
     STATE.mkdir(parents=True,exist_ok=True)
     if healthy("http://127.0.0.1:8001/api/health"):
         raise SystemExit("Port 8001 already serves an API. Stop it before starting a managed stack.")
+    if not args.no_browser and healthy("http://127.0.0.1:5173/"):
+        raise SystemExit("Port 5173 already serves a frontend. Stop it first.")
     token=os.environ.get("AGENTMESH_API_TOKEN") or secrets.token_urlsafe(32)
     env={**os.environ,"AGENTMESH_API_TOKEN":token,
          "AGENTMESH_DB_PATH":os.environ.get("AGENTMESH_DB_PATH",str(ROOT/".local"/"agentmesh.db")),
@@ -46,6 +48,12 @@ def main():
             if processes[0].poll() is not None:raise RuntimeError("API exited; inspect .local/stack/api.log")
             time.sleep(.2)
         else:raise RuntimeError("API did not become healthy")
+        if not args.no_browser:
+            for _ in range(40):
+                if healthy("http://127.0.0.1:5173/"):break
+                if processes[1].poll() is not None:raise RuntimeError("Vite exited; inspect .local/stack/web.log")
+                time.sleep(.25)
+            else:raise RuntimeError("Vite did not become healthy")
         print("API ready: http://127.0.0.1:8001/api/health")
         print("React URL: http://127.0.0.1:5173 (when started)")
         print("Token stored locally: .local/stack/token (never commit)")
