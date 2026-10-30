@@ -122,6 +122,33 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(data,dict):
                 raise ValueError("object expected")
             mode=data.get("mode","agents")
+            if mode=="llm":
+                # Network and cost-bearing mode: disabled unless explicitly enabled on server.
+                if os.getenv("AGENTMESH_ENABLE_LLM")!="1":
+                    return self.respond(403,{"error":"llm_disabled"})
+                if not TOKEN:
+                    return self.respond(403,{"error":"llm_requires_api_token"})
+                from agentmesh.model_gateway import ModelConfig,ModelGateway
+                from agentmesh.llm_agents import AgentRole,run_llm_pipeline
+                objective=data.get("objective","")
+                model=os.getenv("AGENTMESH_OPENAI_MODEL","")
+                if not model:
+                    return self.respond(503,{"error":"model_not_configured"})
+                raw_roles=data.get("roles",[
+                    {"name":"analyzer","instructions":"Analyze requirements and risks."},
+                    {"name":"proposer","instructions":"Propose a verifiable solution."},
+                    {"name":"critic","instructions":"Identify missing evidence and limitations."}])
+                if not isinstance(raw_roles,list) or not 1<=len(raw_roles)<=8:
+                    raise ValueError("roles must be a list of 1..8 agents")
+                roles=[]
+                for item in raw_roles:
+                    if not isinstance(item,dict) or not isinstance(item.get("name"),str) or not isinstance(item.get("instructions"),str):
+                        raise ValueError("invalid role")
+                    roles.append(AgentRole(item["name"],item["instructions"]))
+                budget=int(data.get("max_output_tokens",512))
+                gateway=ModelGateway(ModelConfig(model,max_output_tokens=budget))
+                result=run_llm_pipeline(objective,gateway,roles,max_attempts=1)
+                return self.run_response(mode,result)
             if mode=="gain_search":
                 from agentmesh.gain_control import compare_gains
                 from dataclasses import asdict
