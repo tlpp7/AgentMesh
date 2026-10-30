@@ -165,6 +165,28 @@ The local dashboard provides **Vue générale**, **Graphe d'agents**, **Inversio
 
 The **Laboratoire hybride** tab provides controls for comparative text/numeric execution and an exploratory matrix-conditioning estimate. It does not combine incompatible metrics into a single scientific quality score.
 
+## Execution Console — Network / Table
+
+AgentMesh now provides a compact, searchable **execution console** in the **Graphe d'agents** page, inspired by data-explorer interfaces.
+
+- Switch between the agent-centered network and a dense event table.
+- Filter by agent and status, search error types / violations, and sort by sequence, duration, attempt or status.
+- Select a row to inspect normalized event fields.
+- Trace values are HTML-escaped when rendered in the table.
+- Original execution results remain accessible in **Traces et métriques**.
+- Replaying a trace is **post-run playback**, not a stream of agents operating live.
+
+Frontend stays dependency-free JavaScript/CSS. A TypeScript interface file at `web/types/observability.ts` documents trace event shapes; it is not compiled or loaded at runtime. The Python backend remains the execution engine.
+
+### Benchmarking (local, no published performance claims)
+
+```bash
+python -m pytest tests/test_execution_console.py -v
+python benchmarks/trace_benchmark.py
+```
+
+The microbenchmark measures local normalization plus JSON encoding under synthetic load. It is **not** an end-to-end browser benchmark or proof of increased execution speed.
+
 ## Agent-centric interactive graph
 
 The dashboard now displays a **radial agent topology** with the supervisor at the center, not a linear vertical flow. Select a node to inspect trace events, and use **Replay / Pause / Step / Speed** to examine an execution in sequence. The overview and graph tabs share the same visual playback.
