@@ -3,6 +3,7 @@ import asyncio
 from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Awaitable, Callable
+from datetime import datetime, timezone
 
 @dataclass(frozen=True)
 class AsyncAgent:
@@ -45,13 +46,21 @@ class AsyncMesh:
         self.concurrency = concurrency
         self.timeout_seconds = timeout_seconds
 
-    async def run(self, objective: str) -> GraphResult:
+    async def run(self, objective: str, on_event: Callable[[dict], None] | None = None) -> GraphResult:
         if not objective.strip():
             raise ValueError("objective must not be empty")
         start = perf_counter()
         semaphore = asyncio.Semaphore(self.concurrency)
         tasks: dict[str, asyncio.Task] = {}
         events: list[dict] = []
+        def emit(agent, status, **details):
+            event={"sequence":len(events)+1,"agent":agent,"status":status,
+                   "timestamp":datetime.now(timezone.utc).isoformat(),**details}
+            events.append(event)
+            if on_event is not None:
+                try: on_event(dict(event))
+                except Exception: pass
+
 
         async def execute_node(agent: AsyncAgent):
             inputs = {}
@@ -59,21 +68,20 @@ class AsyncMesh:
                 try:
                     inputs[dependency] = await tasks[dependency]
                 except (Exception, asyncio.CancelledError) as exc:
+                    emit(agent.name,"blocked",dependency=dependency,error_type=type(exc).__name__)
                     raise RuntimeError(f"dependency {dependency} failed") from exc
             async with semaphore:
                 before = perf_counter()
+                emit(agent.name,"started")
                 try:
                     result = await asyncio.wait_for(
                         agent.execute(dict(inputs), objective), self.timeout_seconds)
                     if not isinstance(result, str):
                         raise TypeError("agent must return a string")
-                    events.append({"agent": agent.name, "status": "ok",
-                                   "duration_ms": round((perf_counter()-before)*1000, 3)})
+                    emit(agent.name,"completed",duration_ms=round((perf_counter()-before)*1000,3))
                     return result
                 except BaseException as exc:
-                    events.append({"agent": agent.name, "status": "error",
-                                   "error_type": type(exc).__name__,
-                                   "duration_ms": round((perf_counter()-before)*1000, 3)})
+                    emit(agent.name,"failed",error_type=type(exc).__name__,duration_ms=round((perf_counter()-before)*1000,3))
                     raise
 
         remaining = set(self.agents)
@@ -90,5 +98,5 @@ class AsyncMesh:
                 errors[name] = f"{type(value).__name__}: {value}"
             else:
                 outputs[name] = value
-        return GraphResult(not errors, outputs, errors, sorted(events, key=lambda e:e["agent"]),
+        return GraphResult(not errors, outputs, errors, events,
                            round((perf_counter()-start)*1000, 3))
