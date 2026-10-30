@@ -13,3 +13,6 @@ build/
 apps/web-v2/playwright-report/
 apps/web-v2/test-results/
 apps/web-v2/node_modules/
+
+# Local runtime database, process logs and private tokens
+.local/
