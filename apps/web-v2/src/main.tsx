@@ -6,6 +6,7 @@ import "./dashboard.css";
 import {health,execute,setToken,listRuns,getRun,getEvents,getTelemetry,type TelemetrySnapshot,type StoredRun,type RunResult} from "./api";
 
 const names=["analyzer","proposer","critic"];
+const descriptions:Record<string,string>={analyzer:"Analyse les données",proposer:"Propose une solution",critic:"Évalue les contraintes",supervisor:"Coordonne la décision"};
 function App(){
  const [objective,setObjective]=useState("Analyser les contraintes d'un système multi-agents");
  const [contains,setContains]=useState("");
@@ -14,6 +15,7 @@ function App(){
  const [connection,setConnection]=useState("Vérification...");
  const [result,setResult]=useState<RunResult|null>(null);
  const [selected,setSelected]=useState("supervisor");
+ const [announcement,setAnnouncement]=useState("");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [search,setSearch]=useState("");
@@ -42,8 +44,8 @@ function App(){
  const filtered=events.filter(e=>[e.agent,e.status,e.error_type].join(" ").toLowerCase().includes(search.toLowerCase()));
  async function run(){
   setError("");setBusy(true);
-  try{const data=await execute({objective,attempts,...(contains?{contains}:{})});setResult(data);if(data.run_id)await refreshHistory();}
-  catch(exc){setError(exc instanceof Error?exc.message:String(exc));}
+  try{const data=await execute({objective,attempts,...(contains?{contains}:{})});setResult(data);setAnnouncement(data.accepted?"Exécution acceptée":"Exécution rejetée");if(data.run_id)await refreshHistory();}
+  catch(exc){setError(exc instanceof Error?exc.message:String(exc));setAnnouncement("Erreur pendant l’exécution");}
   finally{setBusy(false);}
  }
  async function refreshHistory(){
@@ -58,12 +60,12 @@ function App(){
   try{setHistoryError("");const [data,replay]=await Promise.all([getRun(id),getEvents(id)]);setResult(data);setReplayCount(replay.events.length);}
   catch(e){setHistoryError(e instanceof Error?e.message:String(e));}
  }
- return <div className="layout">
-  <aside className="sidebar"><div className="brand">◈ AgentMesh</div><div className="side-caption">CONTROL PLANE · R2 EXPERIMENTAL</div>
+ return <><a className="skip-link" href="#main-content">Aller au contenu principal</a><div className="layout">
+  <aside className="sidebar"><nav aria-label="Navigation principale"><div className="brand">◈ AgentMesh</div><div className="side-caption">CONTROL PLANE · R2 EXPERIMENTAL</div>
    <a href="#history">Historique persistant</a><a href="#network">Réseau d'agents</a><a href="#execution">Exécutions</a><a href="#diagnostics">Diagnostics</a><a href="#telemetry">Observabilité R8</a>
-   <p className="muted">Le dashboard historique reste sur le port 8000.</p>
+   </nav><p className="muted">Le dashboard historique reste sur le port 8000.</p>
   </aside>
-  <main className="main">
+  <main className="main" id="main-content"><div className="sr-only" role="status" aria-live="polite">{announcement}</div>
    <header className="heading"><div><small className="muted">AGENTMESH / WORKSPACE</small><h1>Orchestration et diagnostic</h1></div><span className="pill">{connection}</span></header>
    <div className="grid">
     <section className="card" id="execution"><h2>Paramètres d'exécution</h2>
@@ -75,7 +77,8 @@ function App(){
      {error&&<p role="alert" className="error">Erreur API : {error}</p>}
     </section>
     <section className="card" id="network"><div className="heading"><h2>Graphe d'agents</h2><span className="muted">Sélection interactive</span></div>
-     <div className="flow"><ReactFlow nodes={nodes} edges={edges} nodesDraggable={false} onNodeClick={(_,node)=>setSelected(node.id)} fitView><Background color="#27445f"/><Controls/></ReactFlow></div>
+     <div className="flow" role="group" aria-label="Visualisation du graphe des agents"><ReactFlow nodes={nodes} edges={edges} nodesDraggable={false} onNodeClick={(_,node)=>setSelected(node.id)} fitView><Background color="#27445f"/><Controls/></ReactFlow></div>
+     <div className="agent-alternative" role="group" aria-label="Sélection accessible des agents">{[...names,"supervisor"].map(name=><button key={name} type="button" aria-pressed={selected===name} onClick={()=>{setSelected(name);setAnnouncement("Agent sélectionné : "+name)}}>{name} — {descriptions[name]}</button>)}</div>
      <p className="muted">Nœud sélectionné : <strong>{selected}</strong> — représentation de la chaîne déterministe, pas un streaming temps réel.</p>
     </section>
     <section className="card span2" id="history"><div className="heading"><h2>Historique SQLite R3</h2><button onClick={refreshHistory}>Actualiser</button></div>
@@ -109,6 +112,6 @@ function App(){
     </section>
    </div>
   </main>
- </div>;
+ </div></>;
 }
 createRoot(document.getElementById("root")!).render(<React.StrictMode><App/></React.StrictMode>);
