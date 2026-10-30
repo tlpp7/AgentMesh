@@ -149,6 +149,17 @@ python scripts/r15_demo.py
 
 This is an offline research module, **not** a general SAT/SMT solver or a rigorous floating-point proof checker. See [R15 constraint solver guide](docs/r15-constraints.md).
 
+## R8 — Local execution observability
+
+The Interface and visualization track begins with **R8** after the existing R7 tests. FastAPI now records a bounded, in-memory execution summary, adds a bearer-protected `GET /api/v2/telemetry` endpoint and returns a `trace_id` with each completed execution. The optional React dashboard includes an Observabilité R8 inspector.
+
+```bash
+python -m pytest tests/test_r8_telemetry.py tests/test_r8_frontend.py -v
+cd apps/web-v2 && npm run typecheck && npm run build
+```
+
+See [R8 observability guide](docs/r8-observability.md). The journal is per-process, not distributed tracing, and no agent inputs or outputs are stored in it.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
