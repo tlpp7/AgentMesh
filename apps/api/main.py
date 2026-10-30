@@ -23,6 +23,14 @@ def configured_journal():
 
 def create_app():
     app=FastAPI(title="AgentMesh Optional API",version="0.2.0")
+    @app.middleware("http")
+    async def secure_response_headers(request,call_next):
+        response=await call_next(request)
+        response.headers["X-Content-Type-Options"]="nosniff"
+        response.headers["Referrer-Policy"]="no-referrer"
+        response.headers["X-Frame-Options"]="DENY"
+        response.headers["Cache-Control"]="no-store"
+        return response
     limiter=SlidingWindowLimiter(limit=int(os.getenv("AGENTMESH_R9_RATE_LIMIT","30")))
     telemetry=RunTelemetry()
     def require_execution_policy(authorization: str | None = Header(default=None)):
