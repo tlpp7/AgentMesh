@@ -69,9 +69,18 @@ class Mesh:
                     trace.append({"attempt": attempt, "agent": agent.name, "status": "error",
                                   "error_type": type(exc).__name__,
                                   "duration_ms": round((perf_counter() - before) * 1000, 3)})
+                    try:
+                        exc.agentmesh_trace = list(trace)
+                    except (AttributeError, TypeError):
+                        pass
                     raise
                 if not isinstance(output, str):
-                    raise TypeError(f"agent {agent.name} must return a string")
+                    exc = TypeError(f"agent {agent.name} must return a string")
+                    trace.append({"attempt": attempt, "agent": agent.name, "status": "error",
+                                  "error_type": "TypeError",
+                                  "duration_ms": round((perf_counter()-before)*1000, 3)})
+                    exc.agentmesh_trace = list(trace)
+                    raise exc
                 agent_calls += 1
                 trace.append({"attempt": attempt, "agent": agent.name, "status": "ok",
                               "output": output,
@@ -80,8 +89,10 @@ class Mesh:
             for constraint in task.constraints:
                 try:
                     passed = bool(constraint.predicate(output))
-                except Exception:
+                except Exception as exc:
                     passed = False
+                    trace.append({"attempt": attempt, "agent": "constraint:"+constraint.name,
+                                  "status": "error", "error_type": type(exc).__name__})
                 if not passed:
                     violations.append(constraint.name)
             accepted = not violations
