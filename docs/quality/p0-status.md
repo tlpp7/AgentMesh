@@ -8,7 +8,7 @@
 | Q02 | Skip link, navigation landmark, main ID, page title and live status | Audit all interactive semantics and focus order |
 | Q03 | Focusable button alternative to agent graph, selection announcements | Manual screen-reader validation |
 | Q04 | Focus-visible, reduced motion, narrow mobile CSS, 44px agent control | Measure actual contrast, 400% zoom, touch targets across app |
-| Q05 | Regression contracts and accessibility review checklist | axe-core browser scan + manual WCAG 2.2 AA test not yet implemented |
+| Q05 | Playwright + axe-core WCAG-tagged scan and keyboard test in CI | Manual WCAG 2.2 AA, screen reader and contrast verification still pending |
 | Q06 | Threat model with risk inventory and acceptance criteria | Owner review, severity assignment and reassessment |
 | Q07 | Existing RBAC role model reused | Multi-principal identities, authorization for each stored run **missing** |
 | Q08 | Secure default response headers; R9 authorization and limiter retained | TLS, edge rate limiting, CSRF/CORS deployment architecture and resource load tests |
