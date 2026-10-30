@@ -17,13 +17,13 @@ class Bound:
     def __post_init__(self):
         if not isinstance(self.name,str) or not self.name.strip() or len(self.name)>100:
             raise ValueError("invalid constraint name")
-        if not isinstance(self.variable,str) or not self.variable.isidentifier():
+        if not isinstance(self.variable,str) or not self.variable.isidentifier() or self.variable=="__zero__":
             raise ValueError("invalid variable")
         if self.kind not in ("upper","lower","difference"):
             raise ValueError("unsupported kind")
         if type(self.value) not in (int,float) or not isfinite(self.value):
             raise ValueError("finite numeric value required")
-        if self.kind=="difference" and (not isinstance(self.other,str) or not self.other.isidentifier()):
+        if self.kind=="difference" and (not isinstance(self.other,str) or not self.other.isidentifier() or self.other=="__zero__"):
             raise ValueError("difference requires other variable")
         if self.kind!="difference" and self.other:
             raise ValueError("other only valid for difference")
@@ -44,14 +44,14 @@ def _solve(constraints):
         changed=False
         for origin,destination,weight in edges:
             candidate=dist[origin]+weight
-            if candidate<dist[destination]-1e-10:
+            if candidate<dist[destination]:
                 dist[destination]=candidate
                 changed=True
         if not changed:break
     else:
         return None
     offset=dist["__zero__"]
-    return {name:round(value-offset,10) for name,value in dist.items() if name!="__zero__"}
+    return {name:value-offset for name,value in dist.items() if name!="__zero__"}
 
 def solve_constraints(constraints,explain=True):
     """Return a witness if feasible; an irreducible core otherwise.
