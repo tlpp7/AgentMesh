@@ -25,6 +25,18 @@ The PostgreSQL connection factory is **not a storage migration**. The event bus 
 
 See [Modular V2 implementation guide](docs/modular-v2.md) for installation, entry points, compatibility and limitations.
 
+## Troubleshooting: tests fail with 401 in Codespaces
+
+If `AGENTMESH_API_TOKEN` is exported when running pytest, older tests may receive `401 Unauthorized` because `server.TOKEN` is initialized from that environment variable. `tests/conftest.py` now explicitly isolates the token for test HTTP servers, and a dedicated security test verifies that bearer authentication still blocks unauthenticated requests when enabled.
+
+```bash
+git pull --ff-only origin main
+python -m pytest -q
+python -m pytest tests/test_p0_security.py -v
+```
+
+`apps/api/main.py` runs as an **independent FastAPI service** on port 8001. It is not the historical dashboard. Use `http://127.0.0.1:8001/docs` for its interactive API documentation; `/` now returns a simple JSON discovery response. To use the historical UI, run `server.py` on port 8000 and configure its bearer token in **Connecter l'API**. If Vite reports an npm vulnerability, inspect with `npm audit` before deciding on dependency upgrades. Avoid `npm audit fix --force` without reviewing breaking changes.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
