@@ -27,6 +27,25 @@ class RunStore:
         with self._connect() as db:
             rows=db.execute("SELECT id,created,mode,accepted FROM runs ORDER BY created DESC LIMIT ?",(limit,)).fetchall()
         return [{"id":i,"created":c,"mode":m,"accepted":bool(a)} for i,c,m,a in rows]
+    def prune(self, keep=1000):
+        """Keep newest N runs. Must be explicitly invoked."""
+        if type(keep) is not int or not 1<=keep<=100000:
+            raise ValueError("keep must be 1..100000")
+        with self._connect() as db:
+            cursor=db.execute("DELETE FROM runs WHERE id IN (SELECT id FROM runs ORDER BY created DESC, rowid DESC LIMIT -1 OFFSET ?)",(keep,))
+            return cursor.rowcount
+
+    def backup(self, destination):
+        """Consistent SQLite backup; refuse overwriting source."""
+        target=Path(destination).expanduser().resolve()
+        if target==Path(self.path).resolve():
+            raise ValueError("backup destination must differ from source")
+        target.parent.mkdir(parents=True,exist_ok=True)
+        with self._connect() as source:
+            with sqlite3.connect(str(target),timeout=5) as other:
+                source.backup(other)
+        return str(target)
+
     def get(self,identifier):
         with self._connect() as db:
             row=db.execute("SELECT payload FROM runs WHERE id=?",(identifier,)).fetchone()
