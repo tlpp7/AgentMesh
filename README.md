@@ -79,6 +79,18 @@ npm run typecheck && npm run build && npm run dev
 
 See [R2 frontend setup and limitations](docs/r2-frontend.md). This frontend shows **post-run trace results**, not live model streaming. Other legacy modes and production auth remain outside its current scope.
 
+## R3 — Persistent run history and ordered event replay
+
+R3 extends **optional FastAPI**, not the historical server, with a transactional SQLite journal `src/agentmesh/event_journal.py`, protected history/replay routes, and a React run-history inspector. Set `AGENTMESH_DB_PATH` before starting FastAPI to enable persistence; otherwise its history routes return `503 storage_disabled`.
+
+```bash
+export AGENTMESH_DB_PATH="$PWD/.local/agentmesh-r3.db"
+python -m pytest tests/test_r3_journal.py tests/test_r3_frontend.py -v
+python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
+```
+
+Use **Historique SQLite R3 → Actualiser → Rejouer** in the optional React dashboard to inspect stored traces. The replay is **historical event retrieval**, not live execution streaming or agent re-execution. See [R3 event journal guide](docs/r3-events.md). Redis, PostgreSQL migrations and real-time cross-worker events remain future work.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
