@@ -160,6 +160,20 @@ cd apps/web-v2 && npm run typecheck && npm run build
 
 See [R8 observability guide](docs/r8-observability.md). The journal is per-process, not distributed tracing, and no agent inputs or outputs are stored in it.
 
+## Start the complete optional stack in Codespaces
+
+Use the local-only launcher for FastAPI (8001), React/Vite (5173), R9 authorization, R3 SQLite history and R8 diagnostics:
+
+```bash
+cd /workspaces/AgentMesh
+source .venv/bin/activate
+python -m pip install -e '.[dev,api]' httpx
+cd apps/web-v2 && npm install && cd ../..
+python scripts/start_stack.py
+```
+
+The generated token is in `.local/stack/token`; enter it in the React token field. Keep Codespaces forwarded ports **Private**. Stop with `python scripts/stop_stack.py`. See [startup and troubleshooting](docs/start-the-stack.md).
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
