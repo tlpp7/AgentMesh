@@ -3,7 +3,7 @@ import {createRoot} from "react-dom/client";
 import {ReactFlow,Background,Controls,MarkerType,type Node,type Edge} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./dashboard.css";
-import {health,execute,setToken,listRuns,getRun,getEvents,type StoredRun,type RunResult} from "./api";
+import {health,execute,setToken,listRuns,getRun,getEvents,getTelemetry,type TelemetrySnapshot,type StoredRun,type RunResult} from "./api";
 
 const names=["analyzer","proposer","critic"];
 function App(){
@@ -20,6 +20,8 @@ function App(){
  const [savedRuns,setSavedRuns]=useState<StoredRun[]>([]);
  const [historyError,setHistoryError]=useState("");
  const [replayCount,setReplayCount]=useState<number|null>(null);
+ const [telemetry,setTelemetry]=useState<TelemetrySnapshot|null>(null);
+ const [telemetryError,setTelemetryError]=useState("");
  useEffect(()=>{health().then(data=>setConnection(data.status==="ok"?"API connectée":"API indisponible")).catch(()=>setConnection("API hors ligne"));},[]);
  const events=result?.trace??[];
  const nodes=useMemo<Node[]>(()=>{
@@ -48,13 +50,17 @@ function App(){
   try{const data=await listRuns();setSavedRuns(data.runs);setHistoryError("");}
   catch(e){setHistoryError(e instanceof Error?e.message:String(e));}
  }
+ async function refreshTelemetry(){
+  try{setTelemetry(await getTelemetry());setTelemetryError("");}
+  catch(e){setTelemetryError(e instanceof Error?e.message:String(e));}
+ }
  async function inspectRun(id:string){
   try{setHistoryError("");const [data,replay]=await Promise.all([getRun(id),getEvents(id)]);setResult(data);setReplayCount(replay.events.length);}
   catch(e){setHistoryError(e instanceof Error?e.message:String(e));}
  }
  return <div className="layout">
   <aside className="sidebar"><div className="brand">◈ AgentMesh</div><div className="side-caption">CONTROL PLANE · R2 EXPERIMENTAL</div>
-   <a href="#history">Historique persistant</a><a href="#network">Réseau d'agents</a><a href="#execution">Exécutions</a><a href="#diagnostics">Diagnostics</a>
+   <a href="#history">Historique persistant</a><a href="#network">Réseau d'agents</a><a href="#execution">Exécutions</a><a href="#diagnostics">Diagnostics</a><a href="#telemetry">Observabilité R8</a>
    <p className="muted">Le dashboard historique reste sur le port 8000.</p>
   </aside>
   <main className="main">
@@ -80,6 +86,17 @@ function App(){
       {savedRuns.map(item=><tr key={item.id}><td>{item.id.slice(0,12)}</td><td>{item.created}</td><td>{item.accepted?"Oui":"Non"}</td><td><button onClick={()=>inspectRun(item.id)}>Rejouer</button></td></tr>)}
       {!savedRuns.length&&<tr><td colSpan={4} className="muted">Aucune exécution chargée</td></tr>}
      </tbody></table></div>
+    </section>
+    <section className="card span2" id="telemetry">
+     <div className="heading"><h2>Observabilité R8</h2><button onClick={refreshTelemetry}>Charger les métriques</button></div>
+     <p className="muted">Mesures du processus FastAPI actif, sans contenu des objectifs ou des réponses. Elles ne sont pas conservées après redémarrage.</p>
+     {telemetryError&&<p role="alert" className="error">Métriques : {telemetryError}</p>}
+     {telemetry&&<><div className="stats"><div className="stat"><span className="muted">Exécutions mesurées</span><strong>{telemetry.count}</strong></div>
+     <div className="stat"><span className="muted">Acceptées</span><strong>{telemetry.accepted_count}</strong></div>
+     <div className="stat"><span className="muted">P95 observé</span><strong>{telemetry.p95_duration_ms===null?"—":telemetry.p95_duration_ms+" ms"}</strong></div></div>
+     <div className="trace-wrap"><table className="trace"><thead><tr><th>Trace ID</th><th>Run ID</th><th>Durée</th><th>Événements</th></tr></thead><tbody>
+     {telemetry.runs.map(item=><tr key={item.trace_id}><td title={item.trace_id}>{item.trace_id.slice(0,12)}</td><td>{item.run_id?.slice(0,12)??"—"}</td><td>{item.duration_ms} ms</td><td>{item.event_count}</td></tr>)}
+     </tbody></table></div></>}
     </section>
     <section className="card span2" id="diagnostics"><div className="heading"><h2>Inspection et diagnostics</h2><span className="pill">{result?(result.accepted?"Accepté":"Rejeté"):"Aucune exécution"}</span></div>
      <div className="stats"><div className="stat"><span className="muted">Tentatives</span><strong>{result?.attempts??"—"}</strong></div><div className="stat"><span className="muted">Événements</span><strong>{events.length}</strong></div><div className="stat"><span className="muted">Violations</span><strong>{result?.violations?.length??"—"}</strong></div></div>
