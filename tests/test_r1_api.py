@@ -10,6 +10,7 @@ from agentmesh.constraints import nonempty, contains
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.delenv("AGENTMESH_API_TOKEN",raising=False)
+    monkeypatch.delenv("AGENTMESH_R9_ENFORCE",raising=False)
     return TestClient(create_app())
 
 def test_health_contract(client):
@@ -36,6 +37,7 @@ def test_invalid_request_returns_422(client,body):
     assert client.post("/api/v2/run",json=body).status_code==422
 
 def test_bearer_authorization(monkeypatch):
+    monkeypatch.delenv("AGENTMESH_R9_ENFORCE",raising=False)
     monkeypatch.setenv("AGENTMESH_API_TOKEN","x"*40)
     client=TestClient(create_app())
     assert client.post("/api/v2/run",json={"objective":"hello"}).status_code==401
