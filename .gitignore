@@ -8,3 +8,8 @@ build/
 .coverage
 .env
 *.jsonl
+
+# R7 browser test outputs
+apps/web-v2/playwright-report/
+apps/web-v2/test-results/
+apps/web-v2/node_modules/
