@@ -125,6 +125,19 @@ npm run test:e2e
 
 See [R7 E2E test guide](docs/r7-e2e.md). The browser tests must actually pass before R7 is considered validated.
 
+## R9 — Optional multi-agent security policy
+
+The Intelligence multi-agent track continues with **R9** after R7. R9 adds a role/permission model and bounded in-memory execution rate limiting, opt-in on FastAPI through `AGENTMESH_R9_ENFORCE=1`. It does not replace authentication, the legacy API, or the MCP tools.
+
+```bash
+python -m pytest tests/test_r9_security.py -v
+export AGENTMESH_R9_ENFORCE=1
+export AGENTMESH_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
+```
+
+See [R9 security capabilities and limitations](docs/r9-security.md). Multi-tenant identities, shared rate limits and fully enforced per-agent MCP scopes are planned, not delivered.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
