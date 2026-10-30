@@ -161,3 +161,67 @@ document.querySelectorAll(".chip").forEach(el=>el.addEventListener("click",()=>{
 function consoleView(table){$("consoleTablePane").hidden=!table;$("consoleNetworkPane").hidden=table;$("viewNetwork").classList.toggle("active",!table);$("viewTable").classList.toggle("active",table);if(table)drawConsole()}
 $("viewNetwork").addEventListener("click",()=>consoleView(false));
 $("viewTable").addEventListener("click",()=>consoleView(true));
+
+
+let liveAbort=null,liveTrace=[];
+function liveNodeGraph(event){
+  liveTrace.push(event);
+  if(graphModel){
+    renderGraph($("agentGraph"),graphModel,true,liveTrace,event);
+    renderGraph($("overviewGraph"),graphModel,false,liveTrace,event);
+  }
+  $("graphEvent").textContent=event.agent+" · "+event.status;
+  const list=$("liveEvents");
+  const item=document.createElement("div");
+  item.className="step";
+  item.textContent=event.agent+" · "+event.status+" · "+(event.duration_ms??"—")+" ms";
+  list.prepend(item);
+}
+async function startLive(){
+  if(liveAbort)return;
+  stopReplay();
+  liveTrace=[];$("liveEvents").textContent="";
+  const button=$("runLive"), stop=$("stopLive");
+  button.disabled=true;stop.disabled=false;
+  liveAbort=new AbortController();
+  try{
+    const headers={"Content-Type":"application/json"};
+    if(window.agentmeshToken)headers.Authorization="Bearer "+window.agentmeshToken;
+    const response=await fetch("/api/live/run",{
+      method:"POST",headers,
+      body:JSON.stringify({objective:$("objective").value,delay_ms:250,fail_agent:$("liveFailure").value}),
+      signal:liveAbort.signal
+    });
+    if(!response.ok)throw Error("HTTP "+response.status);
+    if(!response.body)throw Error("Streaming non disponible");
+    const reader=response.body.getReader(),decoder=new TextDecoder();
+    let pending="",resultSeen=false;
+    while(true){
+      const {value,done}=await reader.read();if(done)break;
+      pending+=decoder.decode(value,{stream:true}).replace(/\r\n/g,"\n");
+      let boundary;
+      while((boundary=pending.indexOf("\n\n"))!==-1){
+        const frame=pending.slice(0,boundary);pending=pending.slice(boundary+2);
+        const lines=frame.split("\n");
+        const kind=lines.find(x=>x.startsWith("event:"))?.slice(6).trim();
+        const raw=lines.filter(x=>x.startsWith("data:")).map(x=>x.slice(5).trim()).join("\n");
+        if(!raw)continue;
+        const data=JSON.parse(raw);
+        if(kind==="agent")liveNodeGraph(data);
+        if(kind==="result"){
+          resultSeen=true;
+          $("graphEvent").textContent=data.accepted?"● Tous les agents terminés":"● Défaillance d'agent détectée";
+          record("async_live",{...data,observability:{events:liveTrace,event_count:liveTrace.length,agents:{},failure_count:liveTrace.filter(x=>["failed","blocked"].includes(x.status)).length,truncated:false}});
+        }
+        if(kind==="error")throw Error(data.error||"Exécution interrompue");
+      }
+    }
+    if(!resultSeen)$("graphEvent").textContent="Flux interrompu avant le résultat final";
+  }catch(error){
+    $("graphEvent").textContent=error.name==="AbortError"?"Affichage interrompu":"Erreur flux : "+error.message;
+  }finally{
+    liveAbort=null;button.disabled=false;stop.disabled=true;
+  }
+}
+$("runLive").addEventListener("click",startLive);
+$("stopLive").addEventListener("click",()=>liveAbort?.abort());
