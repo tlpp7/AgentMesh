@@ -8,6 +8,7 @@ from agentmesh.core import Mesh,Task
 from agentmesh.constraints import nonempty,contains
 from agentmesh.observability import analyze_run
 from agentmesh.event_journal import EventJournal
+from agentmesh.security_policy import Principal, Policy, SlidingWindowLimiter
 
 def require_token(authorization: str | None = Header(default=None)):
     token=os.getenv("AGENTMESH_API_TOKEN","")
@@ -20,13 +21,24 @@ def configured_journal():
 
 def create_app():
     app=FastAPI(title="AgentMesh Optional API",version="0.2.0")
+    limiter=SlidingWindowLimiter(limit=int(os.getenv("AGENTMESH_R9_RATE_LIMIT","30")))
+    def require_execution_policy(authorization: str | None = Header(default=None)):
+        require_token(authorization)
+        if os.getenv("AGENTMESH_R9_ENFORCE")!="1":return
+        if not os.getenv("AGENTMESH_API_TOKEN"):
+            raise HTTPException(503,"r9_requires_token")
+        principal=Principal("configured-api-token","operator")
+        if not Policy().allowed(principal,"runs:execute"):
+            raise HTTPException(403,"permission_denied")
+        if not limiter.accept(principal.identifier):
+            raise HTTPException(429,"rate_limit_exceeded")
     @app.get("/")
     def index():
         return {"service":"AgentMesh optional FastAPI","documentation":"/docs","health":"/api/health","run":"/api/v2/run","legacy_dashboard":"Use server.py on port 8000"}
     @app.get("/api/health",response_model=HealthResponse)
     def health():
         return HealthResponse()
-    @app.post("/api/v2/run",dependencies=[Depends(require_token)])
+    @app.post("/api/v2/run",dependencies=[Depends(require_execution_policy)])
     def run(payload: RunRequest):
         constraints=[nonempty()]
         if payload.contains:constraints.append(contains(payload.contains))
