@@ -1,5 +1,5 @@
 export type TraceEvent={agent?:string;status?:string;attempt?:number;duration_ms?:number;error_type?:string};
-export type RunResult={accepted:boolean;output:string;attempts:number;violations:string[];trace:TraceEvent[];metrics?:Record<string,unknown>};
+export type RunResult={run_id?:string;accepted:boolean;output:string;attempts:number;violations:string[];trace:TraceEvent[];metrics?:Record<string,unknown>};
 export type RunInput={objective:string;attempts:number;contains?:string};
 let token="";
 export function setToken(value:string){token=value.trim()}
@@ -14,3 +14,9 @@ export async function api<T>(path:string,options:RequestInit={}):Promise<T>{
 }
 export const health=()=>api<{status:string;adapter:string}>("/api/health");
 export const execute=(payload:RunInput)=>api<RunResult>("/api/v2/run",{method:"POST",body:JSON.stringify(payload)});
+
+export type StoredRun={id:string;created:string;status:string;accepted:boolean};
+export type StoredEvent={sequence:number;agent:string;status:string;timestamp:string;payload:TraceEvent};
+export const listRuns=()=>api<{runs:StoredRun[]}>("/api/v2/runs?limit=30");
+export const getRun=(id:string)=>api<RunResult>("/api/v2/runs/"+encodeURIComponent(id));
+export const getEvents=(id:string,after=0)=>api<{run_id:string;events:StoredEvent[]}>("/api/v2/runs/"+encodeURIComponent(id)+"/events?after="+after);
