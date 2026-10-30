@@ -99,6 +99,17 @@ Run `python -m pytest tests/test_r5_validation.py -v`, then `python scripts/r5_v
 
 See [R5 validation guide](docs/r5-optimization-security.md).
 
+## R6 — Validation before deployment
+
+R6 adds a fail-closed release gate that runs syntax checks, pytest, the R0 environment doctor and optionally the React production build. It generates an inspectable JSON report, and GitHub Actions archives that report. No deployment is performed automatically.
+
+```bash
+python scripts/r6_release_gate.py --output r6-release-report.json
+python scripts/r6_release_gate.py --frontend --output r6-with-frontend.json
+```
+
+Read [R6 deployment validation and rollback](docs/r6-release.md) before deploying. A green R6 gate alone is **not** a security certification or proof of production readiness.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
