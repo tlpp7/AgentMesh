@@ -165,6 +165,29 @@ The local dashboard provides **Vue générale**, **Graphe d'agents**, **Inversio
 
 The **Laboratoire hybride** tab provides controls for comparative text/numeric execution and an exploratory matrix-conditioning estimate. It does not combine incompatible metrics into a single scientific quality score.
 
+## Execution traces and failure diagnostics
+
+A core product capability inspired by community feedback: **diagnose failed agents instead of debugging blind**.
+
+- Each sequential agent call records its name, attempt, status and measured duration.
+- If an agent raises an exception or returns the wrong type, the original Python exception is retained with an attached `agentmesh_trace` attribute.
+- Constraint evaluator exceptions appear as typed trace events; the constraint is considered failed.
+- The local API returns a structured failed execution for traced agent exceptions; it includes normalized `observability` information without copying agent outputs into the diagnostic events.
+- The **Traces et métriques** panel provides an agent filter, event timeline and observable failure summaries.
+- Set `AGENTMESH_DB_PATH` to opt in to SQLite run persistence, then use `GET /api/observability` to review saved summaries.
+
+```mermaid
+flowchart LR
+  A[Agent execution] --> B[Structured trace]
+  B --> C[Failure classification]
+  C --> D[Agent filter + timeline]
+  C --> E[SQLite optional]
+  D --> F[Human diagnostic]
+  E --> F
+```
+
+Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
+
 ## Testing and development
 
 ```bash
