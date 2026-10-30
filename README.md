@@ -37,6 +37,17 @@ python -m pytest tests/test_p0_security.py -v
 
 `apps/api/main.py` runs as an **independent FastAPI service** on port 8001. It is not the historical dashboard. Use `http://127.0.0.1:8001/docs` for its interactive API documentation; `/` now returns a simple JSON discovery response. To use the historical UI, run `server.py` on port 8000 and configure its bearer token in **Connecter l'API**. If Vite reports an npm vulnerability, inspect with `npm audit` before deciding on dependency upgrades. Avoid `npm audit fix --force` without reviewing breaking changes.
 
+## R0 — Stabilization baseline and compatibility gate
+
+R0 adds an environment doctor (`scripts/r0_doctor.py`), compatibility tests (`tests/test_r0_stabilization.py`) and CI coverage through Python 3.14 without modifying the legacy API or dashboard. It preserves all opt-in V2 modules.
+
+```bash
+python scripts/r0_doctor.py --strict --output r0-environment.json
+python -m pytest -q
+```
+
+See [R0 stabilization and exit criteria](docs/r0-stabilization.md). The previously observed **134 passed** is the pre-R0 baseline; new tests must be executed in Codespaces before claiming the updated suite passes.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
