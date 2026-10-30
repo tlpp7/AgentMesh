@@ -48,6 +48,18 @@ python -m pytest -q
 
 See [R0 stabilization and exit criteria](docs/r0-stabilization.md). The previously observed **134 passed** is the pre-R0 baseline; new tests must be executed in Codespaces before claiming the updated suite passes.
 
+## R1 — Optional FastAPI adapter (without replacing the original server)
+
+R1 adds a typed Pydantic request contract, an independently served FastAPI application at `apps/api/main.py`, bearer-token checks for its execution route, and deterministic compatibility tests using the original `Mesh` engine.
+
+```bash
+python -m pip install -e '.[dev,api]' httpx
+python -m pytest tests/test_r1_api.py -v
+python -m uvicorn apps.api.main:app --host 127.0.0.1 --port 8001
+```
+
+The new `POST /api/v2/run` supports `objective`, `attempts` and `contains`. The old `server.py` on port 8000 and `web/` are preserved. **Other original modes are not migrated yet.** See [R1 API compatibility guide](docs/r1-api.md) for the complete scope and limitations.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
