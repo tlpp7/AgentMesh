@@ -6,7 +6,7 @@ import json
 import sqlite3
 from datetime import datetime,timezone
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 class DurableOutbox:
     def __init__(self,path):
@@ -25,9 +25,8 @@ class DurableOutbox:
         if not all(isinstance(v,str) and 1<=len(v)<=128 for v in (stream,kind)):
             raise ValueError("invalid stream or kind")
         if not isinstance(payload,dict):raise ValueError("payload must be object")
-        identifier=event_id if event_id is not None else str(uuid4())
         try:
-            identifier=str(uuid4()) if event_id is None else str(__import__("uuid").UUID(event_id))
+            identifier=str(uuid4()) if event_id is None else str(UUID(event_id))
         except (ValueError,TypeError,AttributeError) as exc:
             raise ValueError("event_id must be UUID") from exc
         data=json.dumps(payload,ensure_ascii=False,allow_nan=False,sort_keys=True)
