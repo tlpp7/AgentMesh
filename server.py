@@ -311,6 +311,8 @@ def main():
     parser.add_argument("--host",default="127.0.0.1")
     parser.add_argument("--port",type=int,default=8000)
     args=parser.parse_args()
+    from agentmesh.deployment import DeploymentConfig
+    DeploymentConfig.from_env(args.host).validate()
     print(f"AgentMesh UI: http://{args.host}:{args.port}",flush=True)
     ThreadingHTTPServer((args.host,args.port),Handler).serve_forever()
 
