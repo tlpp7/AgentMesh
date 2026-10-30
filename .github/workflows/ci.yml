@@ -25,3 +25,29 @@ jobs:
         run: python -m pytest tests/test_r0_stabilization.py -q
       - name: CLI smoke test
         run: agentmesh "Check orchestration" --json
+
+  r6-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Python test dependencies
+        run: python -m pip install -e '.[dev,api]' httpx
+      - name: Install frontend dependencies
+        working-directory: apps/web-v2
+        run: npm install
+      - name: R6 validation gate
+        run: python scripts/r6_release_gate.py --frontend --output r6-release-report.json
+      - name: Archive validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-release-report
+          path: r6-release-report.json
+          retention-days: 7
