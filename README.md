@@ -174,6 +174,18 @@ python scripts/start_stack.py
 
 The generated token is in `.local/stack/token`; enter it in the React token field. Keep Codespaces forwarded ports **Private**. Stop with `python scripts/stop_stack.py`. See [startup and troubleshooting](docs/start-the-stack.md).
 
+## P0 quality safeguards (Q01–Q09)
+
+The initial priority-zero package adds an evidence-only baseline, accessible React landmarks and graph-selection alternative, axe-core browser checks, an OWASP threat register, FastAPI security response headers and optional per-agent tool scopes.
+
+```bash
+python -m pytest tests/test_p0_quality_gates.py tests/test_r1_api.py tests/test_r9_security.py -v
+python scripts/quality_baseline.py --execute --output .local/quality-baseline.json
+cd apps/web-v2 && npm install && npm run build && CI=1 npx playwright test e2e/p0-accessibility.spec.ts
+```
+
+See [P0 implementation status](docs/quality/p0-status.md), [security threats](docs/quality/p0-threat-model.md) and [accessibility verification](docs/quality/p0-accessibility-checklist.md). These changes **do not certify WCAG AA / OWASP ASVS**, provide multi-user object-level authorization or make public deployment safe. Passing CI and manual review are required.
+
 ## Quick start (GitHub Codespaces or Linux)
 
 ```bash
