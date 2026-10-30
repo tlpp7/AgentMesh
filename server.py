@@ -132,7 +132,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.respond(400,{"error":"invalid_request"})
         from agentmesh.live_demo import demo_run
         def send(kind, payload):
-            frame=("event: "+kind+"\u005cn"+"data: "+json.dumps(payload,ensure_ascii=False)+"\u005cn\u005cn").encode("utf-8")
+            frame=("event: "+kind+"\n"+"data: "+json.dumps(payload,ensure_ascii=False)+"\n\n").encode("utf-8")
             self.wfile.write(frame)
             self.wfile.flush()
         self.send_response(200)
