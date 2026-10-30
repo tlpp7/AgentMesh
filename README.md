@@ -216,6 +216,35 @@ flowchart LR
 
 Diagnostics identify **observed failure points**, not guaranteed root causes. Output content is not embedded in normalized events; raw run payloads stored in SQLite can still contain sensitive content. Do not expose the prototype API publicly without appropriate security controls.
 
+## P3 — Scoped GitHub review automation
+
+P3 introduces an opt-in **GitHub REST adapter** (`github_workflow.py`) and an issue-to-review-plan workflow. It is designed to complement ChatGPT's GitHub MCP connector, **not** to impersonate or expose a native MCP server.
+
+### Available capabilities
+
+- Read a numbered issue in one explicitly selected repository.
+- Produce a review plan listing acceptance criteria, branching, testing and human approval.
+- Prepare an `agentmesh/*` branch and a **draft** pull request through explicit Python calls if authorized.
+- Never merge automatically. No arbitrary shell execution, automatic code edits or autonomous review claims.
+- Run the read-only workflow **Actions → P3 Issue Review Plan → Run workflow** with an issue number. It uploads `issue-plan.json` as an artifact; it neither commits nor posts comments.
+
+### Codespaces
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pytest tests/test_p3_github.py -v
+export AGENTMESH_GITHUB_TOKEN="<token from a secure secret source>"
+python scripts/github_issue_plan.py --repo tlpp7/AgentMesh --issue 1 --output issue-plan.json
+```
+
+The above issue number is only an example; supply an existing issue. On GitHub Actions, the workflow uses its ephemeral `GITHUB_TOKEN` with `issues: read` and `contents: read` permissions.
+
+### Security boundary and known gaps
+
+The adapter accepts a scoped GitHub repository and fixed API endpoint families. Branch creation and draft PR creation are opt-in calls requiring token permissions; do not grant write permissions to the read-only Actions workflow. Use least-privilege, short-lived tokens where possible, and never include token values in trace payloads or committed files.
+
+**Not yet implemented:** a running MCP transport, n8n triggers, automatic patch generation, verified CI-status gating, approval workflow service and browser QA integration. These require explicit consent and further tests before production use.
+
 ## P2 — Live agent execution and streaming observability
 
 P2 instruments `AsyncMesh.run(objective, on_event=callback)` with timestamped, ordered **started**, **completed**, **failed**, and **blocked** events. Existing asynchronous execution and dependency handling remain in place.
